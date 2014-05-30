@@ -35,11 +35,9 @@ _COLON=re.compile(":")
 #: Regex for a name
 _NAME=re.compile(r"""[^\s\x00-\x1f{}\[\]:"']+""")
 #: Regex for a number
-_NUMBER=re.compile(r"(?:-|\+)?(?:(?:\d*\.\d+|\d+\.\d*)(?:e-?\d+)?|(0b|0|0x)?(\d+))",re.IGNORECASE)
+_NUMBER=re.compile(r"(?:-|\+)?(?:(?:\d*\.\d+|\d+\.\d*)(?:e-?\d+)?|(0b|0|0x)?(\d+))^",re.IGNORECASE)
 #: Regex for a string
 _STRING=re.compile(r"""(r)?(?:"([^\\"]*|\\.)"|'([^\\']*|\\.)')""",re.MULTILINE)
-#: Regex for a comment
-_COMMENT=re.compile(r"\{!([^\\}]|\\.)\}",re.MULTILINE)
 #: Regex for any text that doesn't contain a tag
 _NOTAG_TEXT=re.compile(r"(?:[^\\{\]]|\\.)*",re.MULTILINE)
 
@@ -48,7 +46,66 @@ class Value:
 	'''
 	The base type for all values a CXD document can represent.
 	'''
-	pass
+	
+	def __eq__(self,other):
+		return hash(self)==hash(other)
+	
+	def isText(self):
+		'''
+		Return whether or not the value is a literal Text value.
+		'''
+		return False
+	
+	def isTag(self):
+		'''
+		Return whether or not the value is a literal Tag value.
+		'''
+		return False
+	
+	def isSection(self):
+		'''
+		Return whether or not the value is a literal Section value.
+		'''
+		return False
+	
+	def toText(self):
+		'''
+		Convert the value to a Text object if applicable, else
+		raise a ValueError.
+		
+		This should be used whenever you're looking for a Text
+		value and don't care about its actual type (e.g. "text" and
+		[text] should be interchangeable)
+		'''
+		raise NotImplementatedError()
+	
+	def toTag(self):
+		'''
+		Convert the value to a Text object if applicable, else
+		raise a ValueError.
+		
+		Nothing can convert to a tag, so at the moment this is just
+		a fancy casting operator.
+		'''
+		raise NotImplementederror()
+	
+	def toSection(self):
+		'''
+		Convert the value to a Section object if applicable, else
+		raise a ValueError.
+		
+		This should be used whenever you're looking for a Section
+		value and don't care about its actual type (e.g. "text" and
+		[text] should be interchangeable)
+		'''
+		raise NotImplementedError()
+	
+	def toNumber(self):
+		'''
+		Convert the value to a number if applicable,else raise a
+		ValueError.
+		'''
+		raise NotImplementedError()
 
 class Tag(Value):
 	'''
@@ -81,7 +138,7 @@ class Tag(Value):
 			self.attrs[d.attrs[y].name]=args[x]
 	
 	def __hash__(self):
-		return hash((Tag,self.name,tuple(self.attrs.items(),tuple(self.extra))))
+		return hash((Tag,self.name,tuple(self.attrs.items()),tuple(self.extra)))
 	
 	def __repr__(self):
 		if len(self.attrs)>0:
@@ -94,6 +151,21 @@ class Tag(Value):
 				return "{{{} {}}}".format(self.name,' '.join(repr(x) for x in self.extra))
 			else:
 				return "{{{}}}".format(self.name)
+	
+	def isTag(self):
+		return True
+	
+	def toText(self):
+		raise ValueError("Attempted to convert a tag to text")
+	
+	def toTag(self):
+		return self
+	
+	def toSection(self):
+		raise ValueError("Attempted to convert a tag to a section")
+	
+	def toNumber(self):
+		raise ValueError("Attempted to convert a tag to a number")
 
 class Section(Value):
 	'''
@@ -110,70 +182,65 @@ class Section(Value):
 		return hash((Section,tuple(self.elems)))
 	
 	def __repr__(self):
-		return "[{}]".format(''.join(repr(x) for x in self.elems))
+		return "[{}]".format(''.join(str(x) for x in self.elems))
 	
-	def toText(self,stringify=False):
-		'''
-		Section's toText can optionally take a boolean to
-		indicate whether to stringify any tags within the
-		section, or to generate an error.
-		'''
-		
-		def gen():
-			for x in self.elems:
-				if type(x) is not Tag:
-					yield x.toText().value
-				else:
-					raise ValueError("Attempted to stringify a tag")
-		
-		return Text(''.join(gen()))
+	def isSection(self):
+		return True
+	
+	def toText(self):
+		return Text(''.join(x.toText().value for x in self.elems))
+	
+	def toTag(self):
+		raise ValueError("Attempted to convert a section to a tag")
+	
+	def toSection(self):
+		return self
+	
+	def toNumber(self):
+		return self.toText().toNumber()
 	
 	def append(self,x):
 		self.elems.append(x)
 
-class WrapperValue(Value):
+class Text(Value):
 	'''
-	Shorthand for the value types that are simple wrappers
-	around normal data.
+	A text value (as appears in attribute names, values,
+	and sections.
 	'''
 	def __init__(self,x):
 		self.value=x
 	
-	def __hash__(self):
-		return hash((type(self),self.value))
+	def __repr__(self):
+		return repr(self.value)
 	
 	def __str__(self):
 		return str(self.value)
 	
-	def __repr__(self):
-		return repr(self.value)
+	def __hash__(self):
+		return hash((Text,self.value))
+	
+	def isText(self):
+		return True
 	
 	def toText(self):
-		'''
-		Convert the value to a text object.
-		'''
-		return Text(str(self.value))
-
-class Name(WrapperValue):
-	'''
-	A name, an unquoted string often used to identify tags
-	and attributes
-	'''
-
-class Text(WrapperValue):
-	'''
-	A text value as found in sections or strings.
-	'''
-
-class Integer(WrapperValue):
-	'''
-	An integer value.
-	'''
-
-class Float(WrapperValue):
-	'''
-	A floating point value.
-	'''
+		return self
+	
+	def toTag(self):
+		raise ValueError("Attempted to convert text to a tag")
+	
+	def toSection(self):
+		return Section([self])
+	
+	def toNumber(self):
+		m=_NUMBER.match(self.value)
+		if m:
+			base={"0b":2,"0":8,"0x":16,None:None}[m.group(1)] or 10
+			try:
+				return int(m.group(2),base)
+			except ValueError:
+				return float(m.group(0))
+		else:
+			raise ValueError('Invalid number format: {}'.format(repr(self.value)))
 
 class Document:
 	'''
@@ -202,34 +269,43 @@ class TagDef:
 	'''
 	A tag definition.
 	'''
-	def __init__(self,name,attrs):
-		self.name=name
-		self.attrs=attrs
+	def __init__(self,attrs=None):
+		self.name=None
+		if attrs is None:
+			self.attrs=[]
+		else:
+			self.attrs=[Text(x) if type(x) is str else x for x in attrs]
 	
 	def __repr__(self):
 		if len(self.attrs)>0:
 			return "{{tag {} {}}}".format(self.name,' '.join(x.name for x in self.attrs))
 		return "{{tag {}}}".format(self.name)
-
-#: A tag definition for when a tag is unknown
-nulltag=TagDef("",[])
+	
+	def set_name(self,x):
+		self.name=x
+		return self
 
 class TagSpace:
 	'''
 	A space containing the definitions for tags.
 	'''
 	def __init__(self,tags):
-		self.tags=tags
+		self.tags={Text(x):y.set_name(x) if type(x) is str else (x,y) for x,y in tags.items()}
+		food=list(self.tags.items())[0]
 	
 	def _unknown_tag(self,args,kwargs,p):
-		return Tag(args,kwargs,nulltag)
+		return Tag(args,kwargs,TagDef([]))
 	
 	def build_tag(self,args,kwargs,p):
-		args[0]=args[0].toText().value
 		try:
+			#support for stuff like comment tags
+			if self.tags[args[0]] is None:
+				return None
 			return Tag(args,kwargs,self.tags[args[0]])
 		except KeyError:
 			return self._unknown_tag(args,kwargs,p)
+		except IndexError as e:
+			raise ValueError("Tags must have a name") from e
 
 class Parser:
 	'''
@@ -301,35 +377,27 @@ class Parser:
 		Parse a traditional value.
 		'''
 		
-		#numbers
-		v=self._maybe(_NUMBER)
-		if v:
-			base={"0b":2,"0":8,"0x":16,None:None}[v.group(1)] or 10
-			try:
-				return Integer(int(v.group(2),base))
-			except ValueError:
-				return Float(float(v.group(0)))
-		#strings
+		#text
 		v=self._maybe(_STRING)
 		if v:
 			if v.group(2) is None:
 				return Text(v.group(3))
 			return Text(v.group(2))
-		#names
 		v=self._maybe(_NAME)
 		if v:
-			return Name(v.group(0))
+			return Text(v.group(0))
+		
 		#tags
 		v=self._parse_tag()
 		if v:
 			return v
+		
 		#sections
 		v=self._parse_section()
 		if v:
 			return v
 		
-		print('"{}"'.format(self.text[self.pos]))
-		raise ParseError("Unknown value format ",self.line,self.col)
+		raise ParseError("Unknown value format",self.line,self.col)
 	
 	def _parse_tag(self):
 		'''
@@ -348,6 +416,7 @@ class Parser:
 				#this will raise an error if it's malformed
 				dat=self._parse_value()
 				try:
+					#implement section merging
 					if type(kwargs[val]) is Section:
 						kwargs[val].append(dat)
 					else:
@@ -357,6 +426,7 @@ class Parser:
 			else:
 				args.append(val)
 		
+		#note that if this returns None, the tag will be ignored.
 		return self.tagspace.build_tag(args,kwargs,self)
 	
 	def _parse_doc(self):

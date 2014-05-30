@@ -1,8 +1,8 @@
 from cxd import *
 
 print(load(TagSpace({
-	"menu":TagDef("menu",[]),
-	"food":TagDef("food",[
+	"menu":TagDef(),
+	"food":TagDef([
 		Attribute("name"),
 		Attribute("price"),
 		Attribute("description"),
