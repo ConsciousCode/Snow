@@ -1,0 +1,4 @@
+{doc "Cirrus Test" [
+	{bold [This is some bolded text with {italic [an italicized end.]}]}
+	{underline [Is there an underline here, or is that just me?]}
+]}

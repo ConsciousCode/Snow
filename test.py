@@ -1,6 +1,6 @@
-from cxd import *
+from snow import *
 
-print(load(TagSpace({
+print(load(TagSet({
 	"menu":TagDef(),
 	"food":TagDef([
 		Attribute("name"),
