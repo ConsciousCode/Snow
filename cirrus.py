@@ -5,7 +5,7 @@ import snow
 
 cirrus=snow.TagSet({
 	"doc":snow.TagDef([
-		snow.Attribute("title",""),
+		snow.Attribute("title",snow.Text("Cirrus")),
 		snow.Attribute("...")
 	]),
 	"bold":snow.TagDef([
@@ -16,6 +16,14 @@ cirrus=snow.TagSet({
 	]),
 	"underline":snow.TagDef([
 		snow.Attribute("...")
+	]),
+	"link":snow.TagDef([
+		snow.Attribute("url",snow.Text("")),
+		snow.Attribute("...")
+	]),
+	"line":snow.TagDef(),
+	"image":snow.TagDef([
+		snow.Attribute("url",snow.Text(""))
 	])
 })
 
@@ -24,11 +32,13 @@ def indent(text,by=1,c="\t"):
 	return c*by+_NEWLINE.sub(r"\1"+c*by,text)
 
 class Element:
-	def __init__(self,name,attrs=None,content=None,atomic=True):
+	def __init__(self,name,space=False,attrs=None,content=None,atomic=True):
 		self.name=name
 		self.parent=None
 		self.attrs=attrs or {}
 		self.content=content or []
+		self.atomic=atomic
+		self.space=space
 	
 	def __getitem__(self,x):
 		return self.attrs[x]
@@ -42,6 +52,9 @@ class Element:
 		return x
 	
 	def solidify(self):
+		attrs=" ".join('{}="{}"'.format(x,y) for x,y in self.attrs.items())
+		if attrs:
+			attrs=" "+attrs
 		if len(self.content)>0:
 			def gen():
 				for x in self.content:
@@ -49,23 +62,25 @@ class Element:
 					if c==" ":
 						continue
 					yield c
-			return "<{0}>\n{1}\n</{0}>".format(self.name,indent('\n'.join(gen())))
-		if atomic:
-			return "<{}/>".format(self.name)
+			if self.space:
+				return "<{0}{1}>\n{2}\n</{0}>".format(self.name,attrs,indent('\n'.join(gen())))
+			return "<{0}{1}>{2}</{0}>".format(self.name,attrs,' '.join(gen()))
+		if self.atomic:
+			return "<{}{}/>".format(self.name,attrs)
 		else:
-			return "<{0}></{0}>".format(self.name)
+			return "<{0}{1}></{0}>".format(self.name,attrs)
 
 class TextElement(Element):
 	def __init__(self,text):
-		Element.__init__(self,"",None,[text])
+		Element.__init__(self,"",False,None,[text])
 	
 	def solidify(self):
 		return self.content[0]
 
 class HTMLVisitor:
 	def __init__(self):
-		self.head=Element("head")
-		self.body=Element("body")
+		self.head=Element("head",True)
+		self.body=Element("body",True)
 		self.cur=self.body
 	
 	def visit(self,which):
@@ -85,7 +100,7 @@ class HTMLVisitor:
 			name=which.name.toText().value
 			if name=="doc":
 				if which["title"]:
-					self.head.append(Element("title",None,[TextElement(which["title"].value)]))
+					self.head.append(Element("title",False,None,[TextElement(which["title"].value)]))
 				if self.cur.parent is not None:
 					print("A doc tag should only be at the root of the document")
 					exit()
@@ -99,6 +114,15 @@ class HTMLVisitor:
 			elif name=="underline":
 				self.cur=self.cur.append(Element("u"))
 				which["..."].visit(self)
+			elif name=="link":
+				self.cur=self.cur.append(Element("a",False,{"href":which["url"].toText().value}))
+				which["..."].visit(self)
+			#contentless tags
+			elif name=="line":
+				self.cur.append(Element("br"))
+				self.cur.append(TextElement(""))
+			elif name=="image":
+				self.cur.append(Element("img",False,{"src":which["url"].toText().value}))
 			else:
 				print('Unexepcted tag "{}"'.format(name))
 				self.cur.append(Element("div"))

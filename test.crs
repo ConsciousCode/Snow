@@ -1,4 +1,6 @@
 {doc "Cirrus Test" [
+	{link "https://github.com/ConsciousCode/Snow" This} is a link to the Snow project.{line}
 	{bold [This is some bolded text with {italic [an italicized end.]}]}
-	{underline [Is there an underline here, or is that just me?]}
+	{underline [Is there an underline here, or is that just me?]}{line}
+	{image "http://rcfm.ca/wp-content/uploads/2012/10/snowflake.jpg"}
 ]}

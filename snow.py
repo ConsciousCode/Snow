@@ -158,7 +158,6 @@ class Tag(Value,dict):
 		#fill in default values
 		for attr in d.attrs:
 			if attr.name not in self:
-				print(type(attr.name),attr.name)
 				self[attr.name]=attr.default(self)
 	
 	def __hash__(self):
@@ -429,7 +428,11 @@ class Parser:
 		if v:
 			return v
 		
-		raise ParseError("Unknown value format",self.line,self.col)
+		raise ParseError('Unknown value format ("{}")'.format(
+				self.text[self.pos:self.pos+8]+
+				("..." if self.pos>=len(self.text) else "")
+			),self.line,self.col
+		)
 	
 	def _parse_tag(self):
 		'''
@@ -437,10 +440,10 @@ class Parser:
 		'''
 		if not self._maybe(_OPEN_BRACE):
 			return None
+		self._maybe(_WHITESPACE)
 		args=[]
 		kwargs={}
 		while not self._maybe(_CLOSE_BRACE):
-			self._maybe(_WHITESPACE)
 			val=self._parse_value()
 			self._maybe(_WHITESPACE)
 			if self._maybe(_COLON):
@@ -457,6 +460,7 @@ class Parser:
 					kwargs[val]=dat
 			else:
 				args.append(val)
+			self._maybe(_WHITESPACE)
 		
 		self._maybe(_WHITESPACE)
 		
