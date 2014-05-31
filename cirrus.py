@@ -26,7 +26,13 @@ cirrus=snow.TagSet({
 	"image":snow.TagDef([
 		snow.Attribute("url",snow.Text(""))
 	]),
-	"list":snow.TagDef()
+	"list":snow.TagDef(),
+	"center":snow.TagDef([
+		snow.Attribute("...")
+	]),
+	"heading":snow.TagDef([
+		snow.Attribute("...")
+	])
 })
 
 #utility function for indenting code
@@ -184,6 +190,27 @@ class ListElementDef(ElementDef):
 			x.visit(visitor)
 			visitor.cur=cur
 
+class Heading(ContentElementDef):
+	def __init__(self):
+		ContentElementDef.__init__(self,"heading",{
+			"size":Attr("",lambda attr,visitor:None)
+		},False,False)
+	
+	def build(self,tag,visitor):
+		try:
+			size=int(tag["size"].toNumber())
+		except KeyError:
+			if len(tag.extra)>0:
+				size=int(tag["..."].toNumber())
+				tag["..."]=tag.extra[0]
+			else:
+				size=1
+		if 0<size<6:
+			self.name="h"+str(size)
+		else:
+			self.name="h1"
+		ContentElementDef.build(self,tag,visitor)
+
 #: A dictionary of element conversion definitions.
 elements={
 	"doc":DocumentElementDef(),
@@ -197,7 +224,9 @@ elements={
 	"image":ElementDef("img",{
 		"url":Attr("src")
 	}),
-	"list":ListElementDef()
+	"list":ListElementDef(),
+	"center":ContentElementDef("center"),
+	"heading":Heading()
 }
 
 class HTMLVisitor:
