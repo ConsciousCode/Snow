@@ -8,4 +8,4 @@ print(load(TagSet({
 		Attribute("description"),
 		Attribute("calories")
 	])
-}),open("test.cxd")))
+}),open("test.sno")))

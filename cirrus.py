@@ -3,6 +3,7 @@ import os.path
 import re
 import snow
 
+#: The Cirrus tagset
 cirrus=snow.TagSet({
 	"doc":snow.TagDef([
 		snow.Attribute("title",snow.Text("Cirrus")),
@@ -27,11 +28,15 @@ cirrus=snow.TagSet({
 	])
 })
 
+#utility function for indenting code
 _NEWLINE=re.compile(r"(\r\n|\n|\r)")
 def indent(text,by=1,c="\t"):
 	return c*by+_NEWLINE.sub(r"\1"+c*by,text)
 
 class Element:
+	'''
+	A parsed element to be converted to HTML.
+	'''
 	def __init__(self,name,space=False,attrs=None,content=None,atomic=True):
 		self.name=name
 		self.parent=None
@@ -47,11 +52,17 @@ class Element:
 		self.attrs[x]=val
 	
 	def append(self,x):
+		'''
+		Add an element to the content of this element.
+		'''
 		self.content.append(x)
 		x.parent=self
 		return x
 	
 	def solidify(self):
+		'''
+		Convert the element into textual HTML code.
+		'''
 		attrs=" ".join('{}="{}"'.format(x,y) for x,y in self.attrs.items())
 		if attrs:
 			attrs=" "+attrs
@@ -71,22 +82,113 @@ class Element:
 			return "<{0}{1}></{0}>".format(self.name,attrs)
 
 class TextElement(Element):
+	'''
+	An "element" which represents text in an HTML document.
+	'''
 	def __init__(self,text):
 		Element.__init__(self,"",False,None,[text])
 	
 	def solidify(self):
 		return self.content[0]
 
+class Attr:
+	'''
+	An attribute class used to convert Cirrus attributes to HTML attributes.
+	'''
+	def __init__(self,name,convert=None):
+		self.name=name
+		if convert is None:
+			self.convert=lambda attr,visitor:(name,attr)
+		else:
+			self.convert=convert
+
+class ElementDef:
+	'''
+	A basic Tag -> Element conversion definition.
+	'''
+	def __init__(self,name,attrs=None,space=False,atomic=True):
+		self.name=name
+		self.attrs=attrs or {}
+		self.space=space
+		self.atomic=atomic
+	
+	def build_attrs(self,tag,visitor):
+		for x in tag:
+			try:
+				v=self.attrs[x.toText().value].convert(tag[x],visitor)
+				if v is not None:
+					yield v
+			except KeyError:
+				pass
+	
+	def build(self,tag,visitor):
+		'''
+		Build an element out of the tag.
+		'''
+		visitor.cur=visitor.cur.append(Element(self.name,self.space,dict(self.build_attrs(tag,visitor)),None,self.atomic))
+
+class ContentElementDef(ElementDef):
+	'''
+	Defines a conversion for an element that should have content.
+	'''
+	def build(self,tag,visitor):
+		ElementDef.build(self,tag,visitor)
+		tag["..."].visit(visitor)
+
+class DocumentElementDef(ContentElementDef):
+	'''
+	The definition for the doc tag.
+	'''
+	def __init__(self):
+		def add_title(tag,visitor):
+			visitor.head.append(Element("title",False,None,[TextElement(tag["title"].value)]))
+			return None
+		
+		ElementDef.__init__(self,"doc",{
+			"title":add_title
+		})
+	
+	def build(self,tag,visitor):
+		if visitor.cur.parent is not None:
+			print("A doc tag should only be at the root of the document")
+			exit()
+		self.build_attrs(tag,visitor)
+		tag["..."].visit(visitor)
+
+#: A dictionary of element conversion definitions.
+elements={
+	"doc":DocumentElementDef(),
+	"bold":ContentElementDef("b"),
+	"italic":ContentElementDef("i"),
+	"underline":ContentElementDef("u"),
+	"link":ContentElementDef("a",{
+		"url":Attr("href")
+	}),
+	"line":ElementDef("br"),
+	"image":ElementDef("img",{
+		"url":Attr("src")
+	})
+}
+
 class HTMLVisitor:
+	'''
+	The core class for the interpretation of Cirrus code.
+	'''
 	def __init__(self):
 		self.head=Element("head",True)
 		self.body=Element("body",True)
 		self.cur=self.body
 	
 	def visit(self,which):
+		'''
+		Visit the given Snow value.
+		'''
 		which.visit(self)
 	
 	def accept(self,which):
+		'''
+		Accept a Snow value's visitation and reinterpret it as an HTML element.
+		'''
 		cur=self.cur
 		if which.isDocument():
 			#only visit the first element
@@ -98,33 +200,10 @@ class HTMLVisitor:
 			exit()
 		elif which.isTag():
 			name=which.name.toText().value
-			if name=="doc":
-				if which["title"]:
-					self.head.append(Element("title",False,None,[TextElement(which["title"].value)]))
-				if self.cur.parent is not None:
-					print("A doc tag should only be at the root of the document")
-					exit()
-				which["..."].visit(self)
-			elif name=="bold":
-				self.cur=self.cur.append(Element("b"))
-				which["..."].visit(self)
-			elif name=="italic":
-				self.cur=self.cur.append(Element("i"))
-				which["..."].visit(self)
-			elif name=="underline":
-				self.cur=self.cur.append(Element("u"))
-				which["..."].visit(self)
-			elif name=="link":
-				self.cur=self.cur.append(Element("a",False,{"href":which["url"].toText().value}))
-				which["..."].visit(self)
-			#contentless tags
-			elif name=="line":
-				self.cur.append(Element("br"))
-				self.cur.append(TextElement(""))
-			elif name=="image":
-				self.cur.append(Element("img",False,{"src":which["url"].toText().value}))
-			else:
-				print('Unexepcted tag "{}"'.format(name))
+			try:
+				elements[name].build(which,self)
+			except KeyError:
+				print('Unexpected tag "{}"'.format(name))
 				self.cur.append(Element("div"))
 		elif which.isSection():
 			for x in which:
@@ -134,6 +213,9 @@ class HTMLVisitor:
 		self.cur=cur
 	
 	def solidify(self):
+		'''
+		Convert the entire document to HTML.
+		'''
 		return "<html>\n{}\n{}\n</html>".format(indent(self.head.solidify()),indent(self.body.solidify()))
 
 if len(sys.argv)>2:
@@ -144,8 +226,9 @@ elif len(sys.argv)>1:
 	dst=os.path.splitext(src)[0]+".html"
 else:
 	print("""Usage: python cirrus.py src [dst]
-	src		The source file.
-	dst	The destination file.""")
+  src   The source file.
+  dst   The destination file.""")
+	exit()
 
 doc=snow.load(cirrus,open(src))
 visitor=HTMLVisitor()

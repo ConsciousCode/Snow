@@ -42,6 +42,10 @@ _STRING=re.compile(r"""(r)?(?:"([^\\"]*|\\.)"|'([^\\']*|\\.)')""",re.MULTILINE)
 _NOTAG_TEXT=re.compile(r"(?:[^\\{\]]|\\.)*",re.MULTILINE)
 #: Regex for stripping whitespace from the sides
 _STRIPSPACE=re.compile(r"^\s+|\s+$",re.MULTILINE)
+#: Regex for a control character
+_CONTROL=re.compile(r"[\x00-\x1f]")
+#: Regex for the beginning of a quote
+_QUOTE=re.compile(r"""r?("|')""")
 
 ## DOM type hierarchy
 class Value:
@@ -300,6 +304,9 @@ class TagDef:
 	A tag definition.
 	'''
 	def __init__(self,attrs=None):
+		'''
+		attrs - The attributes which may be positional or named.
+		'''
 		self.name=None
 		if attrs is None:
 			self.attrs=[]
@@ -352,6 +359,8 @@ class Parser:
 		self.pos=0
 		self.line=1
 		self.col=0
+		#last relevant character pattern position.
+		self.lastrel=0
 	
 	def _peek(self,r):
 		'''
@@ -367,7 +376,9 @@ class Parser:
 		lines=_LINES.split(res)
 		if len(lines)>1:
 			self.line+=len(lines)-1
-		self.col=len(lines[-1])
+			self.col=len(lines[-1])
+		else:
+			self.col+=len(res)
 	
 	def _maybe(self,r):
 		'''
@@ -428,7 +439,37 @@ class Parser:
 		if v:
 			return v
 		
-		raise ParseError('Unknown value format ("{}")'.format(
+		#Snow errors are very predictable, so check for common
+		#mistakes. By this point, we know the next character is
+		#one of the start of quoted text, ], }, whitespace, a
+		#control character, or EOF (if not, something is HORRIBLY
+		#wrong)
+		
+		#check for EOF
+		if self.pos>=len(self.text):
+			raise ParseError("Reached end of string/file while parsing a tag.",self.line,self.col)
+		#if there's a string start, there's a string that ends with EOF
+		m=self._maybe(_QUOTE)
+		if m:
+			raise ParseError("Missing terminating {} character".format(m.group(1)),self.line,self.col)
+		#forgot to close a tag
+		elif self._maybe(_CLOSE_BRACK):
+			raise ParseError("Unexpected close bracket ]. Did you forget to close a tag?",self.line,self.col-1)
+		#didn't provide a value for named attribute
+		elif self._maybe(_CLOSE_BRACE):
+			#Need to calculate the line and col of the colon
+			lines=_LINES.split(self.text[:self.lastrel])
+			raise ParseError("Forgot to assign a value to the named attribute.",len(lines),len(lines[-1]))
+		#control characters are disallowed
+		elif self._maybe(_CONTROL):
+			raise ParseError("Control characters are disallowed in unquoted text.",self.line,self.col-1)
+		#indicates an error in the parser's code. "Shouldn't happen"
+		m=self._maybe(_WHITESPACE)
+		if m:
+			raise ParseError("Expected a value, found whitespace. There's a problem with the API's parser code.",self.line,self.col-len(m.group(0)))
+		
+		#something is horribly wrong.
+		raise ParseError('Something went horribly wrong. Expected value, got "{}"'.format(
 				self.text[self.pos:self.pos+8]+
 				("..." if self.pos>=len(self.text) else "")
 			),self.line,self.col
@@ -447,6 +488,8 @@ class Parser:
 			val=self._parse_value()
 			self._maybe(_WHITESPACE)
 			if self._maybe(_COLON):
+				#used for error handling
+				self.lastrel=self.pos
 				self._maybe(_WHITESPACE)
 				#this will raise an error if it's malformed
 				dat=self._parse_value()
