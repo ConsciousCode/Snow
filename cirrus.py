@@ -25,7 +25,8 @@ cirrus=snow.TagSet({
 	"line":snow.TagDef(),
 	"image":snow.TagDef([
 		snow.Attribute("url",snow.Text(""))
-	])
+	]),
+	"list":snow.TagDef()
 })
 
 #utility function for indenting code
@@ -140,12 +141,12 @@ class DocumentElementDef(ContentElementDef):
 	The definition for the doc tag.
 	'''
 	def __init__(self):
-		def add_title(tag,visitor):
-			visitor.head.append(Element("title",False,None,[TextElement(tag["title"].value)]))
+		def add_title(attr,visitor):
+			visitor.head.append(Element("title",None,False,[TextElement(attr.toText().value)]))
 			return None
 		
 		ElementDef.__init__(self,"doc",{
-			"title":add_title
+			"title":Attr("",add_title)
 		})
 	
 	def build(self,tag,visitor):
@@ -154,6 +155,34 @@ class DocumentElementDef(ContentElementDef):
 			exit()
 		self.build_attrs(tag,visitor)
 		tag["..."].visit(visitor)
+
+class ListElementDef(ElementDef):
+	def __init__(self):
+		def build_type(attr,visitor):
+			attr=attr.toText().value
+			try:
+				return "style","list-style-type:{}".format({"*":"disc","o":"circle","a":"lower-latin","A":"upper-alpha","i":"lower-roman","I":"upper-roman","1":"decimal"}[attr])
+			except KeyError:
+				return "style","list-style-type:{}".format(attr)
+		
+		ElementDef.__init__(self,"ol/ul",{
+			"type":Attr("style",build_type)
+		},True,False)
+	
+	def build(self,tag,visitor):
+		try:
+			if tag["type"] in {"*","disc","o","circle","square"}:
+				self.name="ul"
+			else:
+				self.name="ol"
+		except KeyError:
+			self.name="ul"
+		ElementDef.build(self,tag,visitor)
+		cur=visitor.cur
+		for x in tag.extra:
+			visitor.cur=visitor.cur.append(Element("li"))
+			x.visit(visitor)
+			visitor.cur=cur
 
 #: A dictionary of element conversion definitions.
 elements={
@@ -167,7 +196,8 @@ elements={
 	"line":ElementDef("br"),
 	"image":ElementDef("img",{
 		"url":Attr("src")
-	})
+	}),
+	"list":ListElementDef()
 }
 
 class HTMLVisitor:

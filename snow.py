@@ -205,11 +205,7 @@ class Section(Value,list):
 	A section of intermixed text and tags.
 	'''
 	def __init__(self,elems):
-		#strip whitespace
-		if len(elems)>1:
-			list.__init__(self,(Text(_STRIPSPACE.sub(" ",x.value)) if type(x) is Text else x for x in  elems))
-		else:
-			list.__init__(self,elems)
+		list.__init__(self,elems)
 	
 	def __hash__(self):
 		return hash((Section,tuple(self)))
