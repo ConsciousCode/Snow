@@ -36,6 +36,9 @@ cirrus=snow.TagSet({
 	"color":snow.TagDef([
 		snow.Attribute("with",snow.Text("#000")),
 		snow.Attribute("...")
+	]),
+	"indent":snow.TagDef([
+		snow.Attribute("...",snow.Text(""))
 	])
 })
 
@@ -100,7 +103,7 @@ class TextElement(Element):
 		Element.__init__(self,"",False,None,[text])
 	
 	def solidify(self):
-		return self.content[0]
+		return self.content[0].replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").strip()
 
 class Attr:
 	'''
@@ -120,6 +123,8 @@ class ElementDef:
 	def __init__(self,name,attrs=None,space=False,atomic=False):
 		self.name=name
 		self.attrs=attrs or {}
+		if "id" not in self.attrs:
+			self.attrs["id"]=Attr("id")
 		self.space=space
 		self.atomic=atomic
 	
@@ -176,12 +181,12 @@ class ListElementDef(ElementDef):
 				return "style","list-style-type:{}".format(attr)
 		
 		ElementDef.__init__(self,"ol/ul",{
-			"type":Attr("style",build_type)
+			"by":Attr("style",build_type)
 		},True,False)
 	
 	def build(self,tag,visitor):
 		try:
-			if tag["type"] in {"*","disc","o","circle","square"}:
+			if tag["by"] in {"*","disc","o","circle","square"}:
 				self.name="ul"
 			else:
 				self.name="ol"
@@ -198,7 +203,7 @@ class Heading(ContentElementDef):
 	def __init__(self):
 		ContentElementDef.__init__(self,"heading",{
 			"size":Attr("",lambda attr,visitor:None)
-		},False,False)
+		})
 	
 	def build(self,tag,visitor):
 		try:
@@ -224,7 +229,7 @@ elements={
 	"link":ContentElementDef("a",{
 		"url":Attr("href")
 	}),
-	"line":ElementDef("br"),
+	"line":ElementDef("br",{},False,True),
 	"image":ElementDef("img",{
 		"url":Attr("src")
 	}),
@@ -233,6 +238,9 @@ elements={
 	"heading":Heading(),
 	"color":ContentElementDef("span",{
 		"with":Attr("style",lambda attr,visitor:("style","color:"+attr.toText().value))
+	}),
+	"indent":ContentElementDef("span",{
+		"...":Attr("style",lambda attr,visitor:("style","padding-left:2em;"))
 	})
 }
 

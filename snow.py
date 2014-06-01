@@ -1,4 +1,5 @@
 import re
+import unicodedata
 
 class ParseError(RuntimeError):
 	'''
@@ -40,12 +41,16 @@ _NUMBER=re.compile(r"(?:-|\+)?(?:(?:\d*\.\d+|\d+\.\d*)(?:e-?\d+)?|(0b|0|0x)?(\d+
 _STRING=re.compile(r"""(r)?(?:"([^\\"]*|\\.)"|'([^\\']*|\\.)')""",re.MULTILINE)
 #: Regex for any text that doesn't contain a tag
 _NOTAG_TEXT=re.compile(r"(?:[^\\{\]]|\\.)*",re.MULTILINE)
+#: Regex for text that may appear in a document
+_DOC_TEXT=re.compile(r"(?:[^\\{]|\\.)*",re.MULTILINE)
 #: Regex for stripping whitespace from the sides
 _STRIPSPACE=re.compile(r"^\s+|\s+$",re.MULTILINE)
 #: Regex for a control character
 _CONTROL=re.compile(r"[\x00-\x1f]")
 #: Regex for the beginning of a quote
 _QUOTE=re.compile(r"""r?("|')""")
+#: Regex for string escapes
+_ESCAPES=re.compile(r"""\\([abfnrtv'"]|x[\da-f]{2}|u[\da-f]{4}|U[\da-f]{8}|\d\d\d|N\{[\w ]\})""")
 
 ## DOM type hierarchy
 class Value:
@@ -139,13 +144,22 @@ class Tag(Value,dict):
 		kwargs - Named attributes.
 		d - The tag's definition.
 		'''
-		dict.__init__(self,kwargs)
+		dict.__init__(self)
 		self.name=args[0]
 		self.extra=[]
+		extrakwargs={}
+		
+		#separate out extra attributes
+		for x,y in kwargs.items():
+			if x in d.attrs:
+				self[x]=y
+			else:
+				extrakwargs[x]=y
+		
 		#figure out positional arguments
 		for x in range(1,len(args)):
 			#if we've gone past the defined attributes, quit
-			if len(d.attrs)==len(self):
+			if len(d.attrs)<=len(self):
 				self.extra.extend(args[x:])
 				break
 			#search through the attributes until we find one
@@ -163,6 +177,9 @@ class Tag(Value,dict):
 		for attr in d.attrs:
 			if attr.name not in self:
 				self[attr.name]=attr.default(self)
+		
+		#add back in the extra named attributes
+		self.update(extrakwargs)
 	
 	def __hash__(self):
 		return hash((Tag,self.name,tuple(self.items()),tuple(self.extra)))
@@ -338,7 +355,17 @@ class TagSet:
 		except KeyError:
 			return self._unknown_tag(args,kwargs,p)
 		except IndexError as e:
-			raise ValueError("Tags must have a name") from e
+			raise ValueError("Tags must have a name") from None
+
+def unescape(m):
+	s=m.group(1)
+	try:
+		return {"a":"\a","b":"\b","f":"\f","n":"\n","r":"\r","t":"\t","v":"\v","'":"'",'"':'"'}[s]
+	except KeyError:
+		if s[0]=="N":
+			return unicodedata.lookup(s[2:-1])
+		else:
+			return chr(int(s[1:],16))
 
 class Parser:
 	'''
@@ -403,7 +430,10 @@ class Parser:
 			return None
 		
 		#the root doc parsing follows the same format as sections
-		elems=self._parse_doc()
+		elems=self._parse_doc(_NOTAG_TEXT)
+		for x in elems:
+			if x.isText():
+				x.value=x.value.replace("\\{","{").replace("\\]","]")
 		
 		self._expect(_CLOSE_BRACK,"]")
 		self._maybe(_WHITESPACE)
@@ -419,8 +449,12 @@ class Parser:
 		v=self._maybe(_STRING)
 		if v:
 			if v.group(2) is None:
-				return Text(v.group(3))
-			return Text(v.group(2))
+				text=v.group(3)
+			else:
+				text=v.group(2)
+			if not v.group(1):
+				text=_ESCAPES.sub(unescape,text)
+			return Text(text)
 		v=self._maybe(_NAME)
 		if v:
 			return Text(v.group(0))
@@ -506,7 +540,7 @@ class Parser:
 		#note that if this returns None, the tag will be ignored.
 		return self.tagspace.build_tag(args,kwargs,self)
 	
-	def _parse_doc(self):
+	def _parse_doc(self,pattern):
 		'''
 		Parse the bare-bones of a document for use in the
 		section parser as well as the parser for the full
@@ -516,7 +550,7 @@ class Parser:
 		text=tag=True
 		while text or tag:
 			#raises error when ends with }]
-			res=self._maybe(_NOTAG_TEXT)
+			res=self._maybe(pattern)
 			if res.group(0):
 				elems.append(Text(res.group(0)))
 				text=True
@@ -533,13 +567,13 @@ class Parser:
 		self.tagspace=ts or self.tagspace
 		self.text=text or self.text
 		
-		return Document("<string>",self._parse_doc())
+		return Document("<string>",self._parse_doc(_DOC_TEXT))
 	
 	def load(self,ts=None,f=None):
 		self.tagspace=ts or self.tagspace
 		self.text=f.read() or self.text
 		
-		return Document(f.name,self._parse_doc())
+		return Document(f.name,self._parse_doc(_DOC_TEXT))
 
 def load(ts,f):
 	'''
