@@ -113,7 +113,7 @@ class ElementDef:
 	'''
 	A basic Tag -> Element conversion definition.
 	'''
-	def __init__(self,name,attrs=None,space=False,atomic=True):
+	def __init__(self,name,attrs=None,space=False,atomic=False):
 		self.name=name
 		self.attrs=attrs or {}
 		self.space=space
@@ -142,7 +142,7 @@ class ContentElementDef(ElementDef):
 		ElementDef.build(self,tag,visitor)
 		tag["..."].visit(visitor)
 
-class DocumentElementDef(ContentElementDef):
+class DocumentElementDef(ElementDef):
 	'''
 	The definition for the doc tag.
 	'''
@@ -151,7 +151,7 @@ class DocumentElementDef(ContentElementDef):
 			visitor.head.append(Element("title",None,False,[TextElement(attr.toText().value)]))
 			return None
 		
-		ElementDef.__init__(self,"doc",{
+		ContentElementDef.__init__(self,"doc",{
 			"title":Attr("",add_title)
 		})
 	
@@ -159,7 +159,7 @@ class DocumentElementDef(ContentElementDef):
 		if visitor.cur.parent is not None:
 			print("A doc tag should only be at the root of the document")
 			exit()
-		self.build_attrs(tag,visitor)
+		dict(self.build_attrs(tag,visitor))
 		tag["..."].visit(visitor)
 
 class ListElementDef(ElementDef):
