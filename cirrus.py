@@ -32,6 +32,10 @@ cirrus=snow.TagSet({
 	]),
 	"heading":snow.TagDef([
 		snow.Attribute("...")
+	]),
+	"color":snow.TagDef([
+		snow.Attribute("with",snow.Text("#000")),
+		snow.Attribute("...")
 	])
 })
 
@@ -226,7 +230,10 @@ elements={
 	}),
 	"list":ListElementDef(),
 	"center":ContentElementDef("center"),
-	"heading":Heading()
+	"heading":Heading(),
+	"color":ContentElementDef("span",{
+		"with":Attr("style",lambda attr,visitor:("style","color:"+attr.toText().value))
+	})
 }
 
 class HTMLVisitor:

@@ -5,11 +5,11 @@
 	{bold [This is some bolded text with {italic [an italicized end.]}]}
 	{underline [Is there an underline here, or is that just me?]}{line}
 	{list
-		This
-		is
-		an
-		unordered
-		list
+		{color red This}
+		{color lightgrey is}
+		{color blue an}
+		{color rgb(234,12,42) unordered}
+		{color #693 list}
 	}
 	{list type:1
 		Milk
