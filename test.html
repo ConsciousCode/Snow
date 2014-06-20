@@ -1,34 +1,34 @@
 <html>
 	<head>
-		<title>Cirrus Test</title>
+		<script src="snow.js"></script>
+		<script src="snow.cirrus.js" id="cirrus">
+			{doc Test
+				{vcenter [
+					{center [
+						{cols
+							{italic
+								width:60px
+								tip:[And {italic "that's"} a fact!]
+								[{bold This} is text]
+							}
+							{list by:{image "http://www.w3schools.com/CSSref/sqpurple.gif"}
+								width:80px
+								This
+								is
+								a
+								list
+							}
+							[This is some text for testing]
+							[{italic tip:{image "http://www.mariowiki.com/images/thumb/b/b9/Professor_Elvin_Gadd_PiT.png/200px-Professor_Elvin_Gadd_PiT.png"} Egads!} A fourth row?!]
+						} 
+						{link "http://google.com/"
+							{image "http://rcfm.ca/wp-content/uploads/2012/10/snowflake.jpg"}
+						}
+					]}
+				]}
+			}
+		</script>
+		<script src="main.js"></script>
 	</head>
-	<body>
-		
-			
-		<h1>This is a heading!</h1>
-		<h3>This is a subtitle!</h3>
-		<a href="https://github.com/ConsciousCode/Snow">This</a>
-		is a link to the Snow project.
-		<br></br>
-		<b>This is some bolded text with  <i>an italicized end.</i></b>
-		<u>Is there an underline here, or is that just me?</u>
-		<br></br>
-		<ul>
-			<li><span style="color:red">This</span></li>
-			<li><span style="color:lightgrey">is</span></li>
-			<li><span style="color:blue">an</span></li>
-			<li><span style="color:rgb(234,12,42)">unordered</span></li>
-			<li><span style="color:#693">list</span></li>
-		</ul>
-		<ol style="list-style-type:decimal">
-			<li>Milk</li>
-			<li>Eggs</li>
-			<li>Bread</li>
-			<li>Yogurt</li>
-		</ol>
-		<center><img src="http://rcfm.ca/wp-content/uploads/2012/10/snowflake.jpg"></img></center>
-		<span style="padding-left:2em;">
-				Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-			</span>
-	</body>
+	<body></body>
 </html>
