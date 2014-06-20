@@ -129,6 +129,13 @@ snow.cirrus=(function(){
 	}
 	
 	var tags={
+		//Comment
+		"!":Tagdef([],
+			function(name,attrs,extra){
+				//A raw [] is interpreted as meaning "ignore this value"
+				return [];
+			}
+		),
 		"doc":Tagdef(["title","..."],
 			function(name,attrs,extra){
 				return mktag("html",{},[
