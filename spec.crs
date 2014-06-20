@@ -20,7 +20,7 @@
 		[{link #3 [3 Style Guide]}{list by:o
 			{link #3.1 [3.1 Purpose]}
 			{link #3.2 [3.2 Tags and Attributes]}
-			{link #3.3 [3.3 Tagspace Design]}
+			{link #3.3 [3.3 Tagset Design]}
 			[{link #3.4 [3.4 Methods for Common Tasks]}{list by:square
 				{link #3.4.1 [3.4.1 Support for Number/Boolean/Null/...]}
 				{link #3.4.2 [3.4.2 Ordered Aggregate Type]}

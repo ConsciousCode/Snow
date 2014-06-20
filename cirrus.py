@@ -4,40 +4,40 @@ import re
 import snow
 
 #: The Cirrus tagset
-cirrus=snow.TagSet({
-	"doc":snow.TagDef([
+cirrus=snow.Tagset({
+	"doc":snow.Tagdef([
 		snow.Attribute("title",snow.Text("Cirrus")),
 		snow.Attribute("...")
 	]),
-	"bold":snow.TagDef([
+	"bold":snow.Tagdef([
 		snow.Attribute("...")
 	]),
-	"italic":snow.TagDef([
+	"italic":snow.Tagdef([
 		snow.Attribute("...")
 	]),
-	"underline":snow.TagDef([
+	"underline":snow.Tagdef([
 		snow.Attribute("...")
 	]),
-	"link":snow.TagDef([
+	"link":snow.Tagdef([
 		snow.Attribute("url",snow.Text("")),
 		snow.Attribute("...")
 	]),
-	"line":snow.TagDef(),
-	"image":snow.TagDef([
+	"line":snow.Tagdef(),
+	"image":snow.Tagdef([
 		snow.Attribute("url",snow.Text(""))
 	]),
-	"list":snow.TagDef(),
-	"center":snow.TagDef([
+	"list":snow.Tagdef(),
+	"center":snow.Tagdef([
 		snow.Attribute("...")
 	]),
-	"heading":snow.TagDef([
+	"heading":snow.Tagdef([
 		snow.Attribute("...")
 	]),
-	"color":snow.TagDef([
+	"color":snow.Tagdef([
 		snow.Attribute("with",snow.Text("#000")),
 		snow.Attribute("...")
 	]),
-	"indent":snow.TagDef([
+	"indent":snow.Tagdef([
 		snow.Attribute("...",snow.Text(""))
 	])
 })

@@ -312,7 +312,7 @@ class Attribute:
 		else:
 			self.default=lambda x:default
 
-class TagDef:
+class Tagdef:
 	'''
 	A tag definition.
 	'''
@@ -335,7 +335,7 @@ class TagDef:
 		self.name=x
 		return self
 
-class TagSet:
+class Tagset:
 	'''
 	The set of definitions for tags.
 	'''

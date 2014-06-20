@@ -1,0 +1,64 @@
+{in doc 
+	{out {html html} ...:[
+		{out {html head} ...:[
+			{out {html title} ...:{@ title}}
+		]}
+		{out {html body} ...:{@ ...}}
+	]}
+}
+{![Attributeless formatting tags]}
+{in bold
+	{out {html b} ...:{@ ...}}
+}
+{in italic
+	{out {html i} ...:{@ ...}}
+}
+{in underline
+	{out {html u} ...:{@ ...}}
+}
+{in center
+	{out {html center} ...:{@ ...}}
+}
+{![Attibuted formatting tags]}
+{in color
+	{out {html span} style:[color:{@ by}] ...:{@ ...}}
+}
+{in link
+	{out {html a} href:{@ url} ...:{@ ...}}
+}
+{![Content tags]}
+{in image
+	{out {html img} src:{@ url} ...:{@ ...}}
+}
+{![Conditional tags (may render as one of a number of tags)]}
+{in indent
+	{out {html span} style:"padding-left:2em;"}
+}
+{in {@ {in indent}  ...}
+	{out {html div} style:"padding-left:2em;" ...:{@ ...}}
+}
+{in {@ {in heading} {@ size}:1 {@ size}:2 {@ size}:3 {@ size}:4 {@ size}:5 {@ size}:6}
+	{out {html [h{@ size}]} ...:{@ ...}}
+}
+{![List is kind of complicated, so it has to be split up]}
+{$ id:li [
+	{out {html li} ...:{@ {# 0} ...}}
+	{$ {@ id:li} {# 1 -1}}
+]}
+{$ id:list {out
+	{html {@ order}}
+	style:[list-style-type:{@ by}]
+	...:{$ {@ id:li} {# 0 -1}}
+}}
+{in list
+	{$ {@ id:list} {out tmp order:ol by:{@ by}}}
+}
+{in {@ {in list} {@ by}:* {@ by}:disc}
+	{$ {@ id:list} {out tmp order:ul by:disc}}
+}
+{in {@ {in list} {@ by}:o {@ by}:circle}
+	{$ {@ id:list} {out tmp order:ul by:circle}}
+}
+{in {@ {in list} {@ by}:square}
+	{$ {@ id:list} {out tmp order:ul by:square}}
+}
