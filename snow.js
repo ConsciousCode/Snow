@@ -2,6 +2,174 @@
  * A highly concise and expressive tag-based general data representation.
 **/
 var snow=(function(){
+	//An Mapiative array with mixed type keys.
+	var Map=(function(){
+		function Map(keys,vals){
+			this.keys=keys||[];
+			this.vals=vals||[];
+		}
+		
+		function is_elem(x){
+			try{
+				return obj instanceof HTMLElement;
+			}
+			catch(e){
+				return x.nodeType===1 && typeof x.style==="object" && typeof x.ownerDocument==="object";
+			}
+		}
+		
+		//Mostly used for "uncomparables," objects and arrays (but not functions).
+		//This can be overloaded for different behavior.
+		Map.prototype.compare=function comp(a,b){
+			if(typeof a!="object" && typeof b!="object"){
+				if(a==a){
+					return a==b;
+				}
+				return b!=b;
+			}
+			
+			//Quit on DOM elements
+			if(is_elem(a) || is_elem(b)){
+				return false;
+			}
+			
+			//Standard object types to be checked
+			var defs=[
+				//Functions shouldn't be compared
+				[Function,function(a,b){
+					return false;
+				}],
+				[String,function(a,b){
+					return a.valueOf()==b.valueOf();
+				}],
+				[Array,function(a,b){
+					var len=a.length;
+					if(len!=b.length){
+						return false;
+					}
+					for(var i=0;i<len;++i){
+						if(!this.compare(a[i],b[i])){
+							return false;
+						}
+					}
+					return true;
+				}],
+				[RegExp,function(a,b){
+					return a.toString()==b.toString();
+				}],
+				[Date,function(a,b){
+					return a.getTime()==b.getTime();
+				}],
+				[Number,function(a,b){
+					var v=a.valueOf();
+					if(v!=v){
+						var v2=b.valueOf();
+						return v2!=v2;
+					}
+					return a.valueOf()==b.valueOf();
+				}]
+			];
+			
+			for(var i=0;i<defs.length;++i){
+				var def=defs[i],what=def[0];
+				if(a instanceof what && b instanceof what){
+					return def[1](a,b);
+				}
+				else if(a instanceof what || b instanceof what){
+					return false;
+				}
+			}
+			
+			//(Hopefully) a primitive object.
+			for(var key in a){
+				if(key in b){
+					if(this.compare(a[key],b[key])){
+						continue;
+					}
+				}
+				return false;
+			}
+			return true;
+		}
+		
+		function index(o,x){
+			//Support for NaN
+			if(x!=x){
+				var len=o.keys.length;
+				for(var i=0;i<len;++i){
+					var k=o.keys[i];
+					if(k!=k){
+						return i;
+					}
+				}
+				return -1;
+			}
+			else if(typeof x=="object"){
+				var len=o.keys.length;
+				for(var i=0;i<len;++i){
+					if(o.compare(x,o.keys[i])){
+						return i;
+					}
+				}
+				return -1;
+			}
+			return o.keys.indexOf(x);
+		}
+		
+		Map.prototype.get=function(x){
+			var i;
+			if((i=index(this,x))!=-1){
+				return this.vals[i];
+			}
+			return undefined;
+		};
+		
+		Map.prototype.set=function(x,v){
+			var i;
+			if((i=index(this,x))!=-1){
+				this.vals[i]=v;
+				return v;
+			}
+			this.keys.push(x);
+			this.vals.push(v);
+			return v;
+		};
+		
+		Map.prototype.del=function(x){
+			var i;
+			if((i=index(this,x))!=-1){
+				delete this.keys[i];
+				delete this.vals[i];
+			}
+		}
+		
+		Map.prototype.has=function(x){
+			return index(this,x)!=-1;
+		}
+		
+		Map.prototype.items=function(){
+			var items=[],len=this.keys.length;
+			for(var i=0;i<len;++i){
+				items.push({
+					key:this.keys[i],
+					val:this.vals[i]
+				});
+			}
+			return items;
+		}
+		
+		Map.prototype.each=function(callback){
+			var len=this.keys.length;
+			for(var i=0;i<len;++i){
+				if(callback(this.keys[i],this.vals[i])===false){
+					break;
+				}
+			}
+		}
+		
+		return Map;
+	})();
+	
 	//This must be available for default values.
 	function Tagset(tags,build_tag){
 		var bt=build_tag || function(args,kwargs){
@@ -44,16 +212,13 @@ var snow=(function(){
 				
 				for(var i=0;x<args.length && i<attrs.length;++i){
 					var v=attrs[i];
-					if(!(v in kwargs)){
-						kwargs[v]=args[x++];
+					if(!kwargs.has(v)){
+						kwargs.set(v,args[x++]);
 					}
 				};
 				
 				var val=build(name,kwargs,args.slice(x),data);
 				if(Array.isArray(val)){
-					if(val.length>0){
-						return [val];
-					}
 					return val;
 				}
 				//Returned a non-array value - must be wrapped in an array to indicate that the value should be registered in the document.
@@ -159,7 +324,7 @@ var snow=(function(){
 					}
 					this.space();
 					
-					var args=[],kwargs={};
+					var args=[],kwargs=new Map();
 					while(!this.maybe(/\}/g)){
 						var val=this.parse_value(data);
 						this.space();
@@ -168,14 +333,15 @@ var snow=(function(){
 							this.space();
 							
 							var dat=this.parse_value(data);
-							if(Array.isArray(kwargs[val])){
-								kwargs[val].push(dat);
+							var kwv=kwargs.get(val);
+							if(Array.isArray(kwv)){
+								kwv.push(dat);
 							}
-							else if(kwargs[val]===undefined){
-								kwargs[val]=dat;
+							else if(kwv===undefined){
+								kwargs.set(val,dat);
 							}
 							else{
-								kwargs[val]=[kwargs[val],dat];
+								kwargs.set(val,[kwv,dat]);
 							}
 						}
 						else{

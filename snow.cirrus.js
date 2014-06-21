@@ -60,14 +60,89 @@ snow.cirrus=(function(){
 		}
 	}
 	
+	function as(type,obj){
+		if(type=="text"){
+			if(obj===undefined){
+				return "";
+			}
+			else if(typeof obj=="string"){
+				return obj;
+			}
+			else if($.isArray(obj)){
+				var a=[];
+				$.each(obj,function(x,v){
+					a.push(as(type,v));
+				});
+				return a.join("");
+			}
+			else{
+				return obj.attrs.get("...")||"";
+			}
+		}
+		else if(type=="image"){
+			if(obj===undefined){
+				return undefined;
+			}
+			else if($.isArray(obj)){
+				return as("text",obj);
+			}
+			else if(typeof obj=="object"){
+				if(obj.name=="image" || obj.name=="link"){
+					return obj.attrs.get("url");
+				}
+				return as("text",obj);
+			}
+			else if(typeof obj=="string"){
+				return obj;
+			}
+		}
+		else if(type=="url"){
+			if(obj===undefined){
+				return undefined;
+			}
+			else if($.isArray(obj)){
+				return as("text",obj);
+			}
+			else if(typeof obj=="object"){
+				if(obj.name=="link"){
+					return obj.attrs.get("url");
+				}
+				return as("text",obj);
+			}
+			else if(typeof obj=="string"){
+				return obj;
+			}
+		}
+		else if(type=="size"){
+			var val=as("text",obj).trim();
+			if(m=/(\d+|\d*\.\d+|\d+\.\d*)(px)?/.exec(val)){
+				return Math.floor(parseFloat(m[1]))+"px";
+			}
+			else if(m=/(\d+|\d*\.\d+|\d+\.\d*)%/.exec(val)){
+				return m[0];
+			}
+		}
+	}
+	
+	//If a, apply a function to it, else return b
+	function applyor(a,apply,b){
+		if(a){
+			return apply(a);
+		}
+		return b;
+	}
+	
 	//Convenience function to make a tag with attributes and children (REALLY helps for recursive value building)
 	function mktag(n,attrs,children,events){
 		var $tag=$("<"+n+">");
 		
-		$.each(attrs||{},function(k,v){
+		$.each(attrs,function(k,v){
 			if(v!==undefined){
-				var m=/^data-(.*)/.exec(k);
-				if(m){
+				var m;
+				if(k=="class"){
+					$tag.addClass(v);
+				}
+				else if(m=/^data-(.*)/.exec(k)){
 					$tag.data(m[1],v);
 					$tag.attr("data-has"+m[1],"1");
 				}
@@ -96,16 +171,11 @@ snow.cirrus=(function(){
 		return $tag;
 	}
 	
-	//"Override" of tagdef for local data storage
-	function Tagdef(attrs,build){
-		return {
-			attrs:attrs,
-			build:build
-		};
-	}
-	
 	function build(x){
-		if($.isArray(x)){
+		if(x===undefined){
+			return;
+		}
+		else if($.isArray(x)){
 			var out=[];
 			$.each(x,function(i,v){
 				out.push(build(v));
@@ -122,10 +192,29 @@ snow.cirrus=(function(){
 				throw new Error('Unrecognized tag name "'+x.name+'"');
 			}
 		}
-		//Must be text
-		else{
+		//Must be text, but sanity check
+		else if(typeof x=="string"){
 			return x;
 		}
+		throw new Error("Unrecognized type");
+	}
+	
+	//"Override" of tagdef for local data storage
+	function Tagdef(attrs,build_tag){
+		return {
+			attrs:attrs,
+			build:function(name,attrs,extra){
+				var stuff=build_tag(name,attrs,extra);
+				if(typeof stuff=="string" || $.isArray(stuff)){
+					return stuff;
+				}
+				//Global stuff
+				return stuff.
+					data("tip",build(attrs.get("tip"))).
+					attr("id",as("text",attrs.get("id"))).
+					addClass(as("text",attrs.get("class")));
+			}
+		};
 	}
 	
 	var tags={
@@ -138,119 +227,113 @@ snow.cirrus=(function(){
 		),
 		"doc":Tagdef(["title","..."],
 			function(name,attrs,extra){
-				return mktag("html",{},[
+				//Wrap in an array to disable global modifications.
+				return [mktag("html",{},[
 					mktag("head",{},[
-						attrs.title?mktag("title",{},attrs.title):undefined,
-						attrs.icon?mktag("link",{
-							rel:"shortcut icon",
-							href:attrs.icon
-						}):undefined,
+						applyor(as("text",attrs.get("title")),
+							function(x){
+								return mktag("title",{},x);
+							}
+						),
+						applyor(as("image",attrs.get("link")),
+							function(x){
+								return mktag("link",{
+									rel:"shortcut icon",
+									href:x
+								});
+							}
+						),
 						//Default, built-in styles.
 						mktag("style",{
-								type:"text/css"
-							},defstyle
-						),
-						attrs.style?mktag("style",{
-								type:"text/css"
-							},attrs.style
-						):undefined
+							type:"text/css"
+						},defstyle),
+						applyor(as("text",attrs.get("style")),
+							function(x){
+								return mktag("style",{
+									type:"text/css"
+								},x);
+							}
+						)
 					]),
-					mktag("body",{
-						"data-tip":build(attrs.tip),
-						id:attrs.id,
-						"class":attrs["class"]
-					},build(attrs["..."]))
-				]);
+					mktag("body",{},build(attrs.get("...")))
+				])];
 			}
 		),
 		"bold":Tagdef(["..."],
 			function(name,attrs,extra){
-				return mktag("b",{
-					"data-tip":build(attrs.tip),
-					id:attrs.id,
-					"class":attrs["class"]
-				},build(attrs["..."]));
+				var content=attrs.get("...");
+				return mktag("b",{},build(content));
 			}
 		),
 		"italic":Tagdef(["..."],
 			function(name,attrs,extra){
-				return mktag("i",{
-					"data-tip":build(attrs.tip),
-					id:attrs.id,
-					"class":attrs["class"]
-				},build(attrs["..."]));
+				return mktag("i",{},build(attrs.get("...")));
 			}
 		),
 		"underline":Tagdef(["..."],
 			function(name,attrs,extra){
-				return mktag("u",{
-					"data-tip":build(attrs.tip),
-					id:attrs.id,
-					"class":attrs["class"]
-				},build(attrs["..."]));
+				return mktag("u",{},build(attrs.get("...")));
 			}
 		),
 		"strike":Tagdef(["..."],
 			function(name,attrs,extra){
-				return mktag("del",{
-					"data-tip":build(attrs.tip),
-					id:attrs.id,
-					"class":attrs["class"]
-				},build(attrs["..."]));
+				return mktag("del",{},build(attrs.get("...")));
 			}
 		),
 		"center":Tagdef(["..."],
 			function(name,attrs,extra){
-				return mktag("center",{
-					"data-tip":build(attrs.tip),
-					id:attrs.id,
-					"class":attrs["class"]
-				},build(attrs["..."]));
+				return mktag("center",{},build(attrs.get("...")));
 			}
 		),
 		"vcenter":Tagdef(["..."],
 			function(name,attrs,extra){
 				return mktag("div",{
-					"data-tip":build(attrs.tip),
-					"class":"-sno-vcenter"+(attrs["class"]?" "+attrs["class"]:""),
-					id:attrs.id
-				},build(attrs["..."]));
+					"class":"-sno-vcenter"
+				},build(attrs.get("...")));
 			}
 		),
 		"link":Tagdef(["url","..."],
 			function(name,attrs,extra){
 				return mktag("a",{
-					href:attrs.url,
-					"data-tip":build(attrs.tip),
-					id:attrs.id,
-					"class":attrs["class"]
-				},build(attrs["..."]));
+					href:as("url",attrs.get("url"))
+				},build(attrs.get("...")));
 			}
 		),
 		"image":Tagdef(["url"],
 			function(name,attrs,extra){
 				return mktag("img",{
-					src:attrs.url,
-					alt:attrs.alt,
-					"data-tip":build(attrs.tip),
-					id:attrs.id,
-					"class":attrs["class"]
+					src:as("url",attrs.get("url")),
+					alt:as("text",attrs.get("alt"))
 				});
 			}
 		),
 		"list":Tagdef([],
 			function(name,attrs,extra){
+				var rel=attrs.get("rel");
+				if(rel && rel=="defs"){
+					if(extra.length && typeof extra[0]=="object"){
+						var elems=[];
+						extra[0].each(function(x,v){
+							elems.push(mktag("dt",{},x));
+							elems.push(mktag("dd",{},v));
+						});
+						return mktag("dl",{},elems);
+					}
+					//No extra, fall through to normal list building
+				}
+				
+				var attrs_by=as("text",attrs.get("by"));
 				var by,type;
-				if(attrs.by){
-					if(attrs.by.name=="image"){
+				if(attrs_by){
+					if(attrs_by.name=="image"){
 						by="list-style-image:url("+attrs.by.attrs.url+");";
 						type="ul";
 					}
-					else if(by={"*":"disc",o:"circle",square:"square","":"none"}[attrs.by]){
+					else if(by={"*":"disc",o:"circle",square:"square","":"none"}[attrs_by]){
 						by="list-style-type:"+by+";";
 						type="ul";
 					}
-					else if(by={0:"decimal-leading-zero",1:"decimal",a:"lower-alpha",A:"upper-alpha",i:"lower-roman",I:"upper-roman"}[attrs.by]){
+					else if(by={0:"decimal-leading-zero",1:"decimal",a:"lower-alpha",A:"upper-alpha",i:"lower-roman",I:"upper-roman"}[attrs_by]){
 						by="list-style-type:"+by+";";
 						type="ol";
 					}
@@ -275,44 +358,59 @@ snow.cirrus=(function(){
 				var flex=[];
 				var rigid=[];
 				$.each(extra,function(x,v){
-					var w=v.attrs?v.attrs.width:"";
-					if(/\d+%/.test(w)){
-						flex.push(w);
-					}
-					else if(/\d+px/.test(w)){
-						rigid.push(w);
+					if(typeof v=="object" && !$.isArray(v)){
+						var w=as("text",v.attrs.get("width"));
+						if(/\d+%/.test(w)){
+							flex.push(w);
+						}
+						else if(/\d+px/.test(w)){
+							rigid.push(w);
+						}
+						else{
+							++expand;
+						}
 					}
 					else{
 						++expand;
 					}
 				});
 				
+				var eqspace="100%/"+(expand+flex.length+rigid.length);
 				var elems=[];
 				$.each(extra,function(x,v){
-					var rw=v.attrs?v.attrs.width:"",w;
-					var eqspace="100%/"+(expand+flex.length+rigid.length);
+					var rw,w;
+					if(typeof v=="object" && !$.isArray(v)){
+						rw=v.attrs.get("width");
+					}
 					
 					if(rw && (/\d+%/.test(rw) || /\d+px/.test(rw))){
 						w=rw;
 					}
 					else{
 						//Unspecified widths depend on other columns.
-						w="calc("+eqspace;
+						w=["calc(",eqspace];
 						$.each(rigid,function(x,v){
-							w+=" + ("+eqspace+" - "+v+")/"+(expand+flex.length);
+							w.push(
+								" + (",
+								eqspace,
+								" - ",
+								v,
+								")/",
+								expand+flex.length
+							);
 						});
 						$.each(flex,function(x,v){
-							w+=" - "+v;
+							w.push(" - ",v);
 						});
-						w+=")";
+						w.push(")");
+						w=w.join("");
 					}
 					
 					elems.push($("<div>").addClass("-sno-col").css({width:w}).append(build(v)));
 				});
 				
 				return mktag("div",{
-					"class":(attrs["class"]?attrs["class"]+" ":"")+"-sno-cols",
-					"id":attrs.id
+					"class":"-sno-cols"
 				},elems);
 			}
 		)
@@ -341,7 +439,7 @@ snow.cirrus=(function(){
 		});
 		
 		//Convert the doc to an HTML structure.
-		var $doc=build(doc);
+		var $doc=build(doc)[0];
 		
 		//Deindent and store for debugging.
 		var indent=99;
