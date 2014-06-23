@@ -36,7 +36,8 @@ snow.cirrus=(function(){
 		".-sno-tooltip{padding:1px 5px !important;border:1px solid #777 !important;color:#555 !important;background:#fff !important;font-size:12px !important;font-family:Arial !important;box-shadow:6px 6px 1px -4px rgba(0,0,0,0.4) !important;border-radius:0 !important;}",
 		//Snow has ways to make it easy to vertically center elements.
 		".-sno-vcenter{position:absolute;top:50%;width:100%;-ms-transform:translate(0px,-50%);-webkit-transform:translate(0px,-50%);transform:translate(0px,-50%);}",
-		".-sno-col{float:left;}\n.-sno-cols{margin:0;}"
+		".-sno-col{float:left;}\n.-sno-cols{margin:0;}",
+		".-sno-row{}\n.-sno-rows{}\n.-sno-row>*{}"
 	].join("\n");
 	
 	//Used by mktag to recursively add children.
@@ -124,6 +125,15 @@ snow.cirrus=(function(){
 		}
 	}
 	
+	function isTag(x){
+		if(typeof x=="object" && !Array.isArray(x)){
+			if(x.attrs && x.attrs instanceof snow.Map){
+				return true;
+			}
+		}
+		return false;
+	}
+	
 	//If a, apply a function to it, else return b
 	function applyor(a,apply,b){
 		if(a){
@@ -159,14 +169,6 @@ snow.cirrus=(function(){
 				$tag.on(x,v);
 			});
 		}
-		
-		$tag.tooltip({
-			content:function(){
-				return $(this).data("tip");
-			},
-			items:"[data-hastip]",
-			tooltipClass:"-sno-tooltip"
-		});
 		
 		return $tag;
 	}
@@ -209,12 +211,27 @@ snow.cirrus=(function(){
 					return stuff;
 				}
 				//Global stuff
+				var tip=build(attrs.get("tip"));
+				if(tip){
+					stuff.data("tip",tip).attr("data-hastip","");
+				}
 				return stuff.
-					data("tip",build(attrs.get("tip"))).
-					attr("id",as("text",attrs.get("id"))).
+					attr("id",as("text",attrs.get("id"))||undefined).
 					addClass(as("text",attrs.get("class")));
 			}
 		};
+	}
+	
+	/**
+	 * Compile a {sel} tag into a CSS selector.
+	**/
+	function compile_sel(x){
+		//classes, ids, pseudo 
+		var k=[],ids=[],pseudo=[]
+		var v=x.attrs.get("class");
+		if(v){
+			if(typeof v=="object"
+		}
 	}
 	
 	var tags={
@@ -225,7 +242,7 @@ snow.cirrus=(function(){
 				return [];
 			}
 		),
-		"doc":Tagdef(["title","..."],
+		"doc":Tagdef(["..."],
 			function(name,attrs,extra){
 				//Wrap in an array to disable global modifications.
 				return [mktag("html",{},[
@@ -245,7 +262,8 @@ snow.cirrus=(function(){
 						),
 						//Default, built-in styles.
 						mktag("style",{
-							type:"text/css"
+							type:"text/css",
+							id:"snow-style"
 						},defstyle),
 						applyor(as("text",attrs.get("style")),
 							function(x){
@@ -358,7 +376,7 @@ snow.cirrus=(function(){
 				var flex=[];
 				var rigid=[];
 				$.each(extra,function(x,v){
-					if(typeof v=="object" && !$.isArray(v)){
+					if(isTag(v)){
 						var w=as("text",v.attrs.get("width"));
 						if(/\d+%/.test(w)){
 							flex.push(w);
@@ -379,7 +397,7 @@ snow.cirrus=(function(){
 				var elems=[];
 				$.each(extra,function(x,v){
 					var rw,w;
-					if(typeof v=="object" && !$.isArray(v)){
+					if(isTag(v)){
 						rw=v.attrs.get("width");
 					}
 					
@@ -413,6 +431,30 @@ snow.cirrus=(function(){
 					"class":"-sno-cols"
 				},elems);
 			}
+		),
+		"rows":Tagdef([],
+			function(name,attrs,extra){
+				var elems=[];
+				$.each(extra,function(x,v){
+					elems.push($("<div>").addClass("-sno-row").append(build(v)));
+				});
+				
+				return mktag("div",{
+					"class":"-sno-rows"
+				},elems);
+			}
+		),
+		"style",Tagdef(["..."],
+			function(name,attrs,extra){
+				var content=attrs.get("...");
+				if(content){
+					if(isTag(content)){
+						if(content.name=="sel"){
+							// !!!!!!!!!!!!!!!!
+						}
+					}
+				}
+			}
 		)
 	};
 	
@@ -440,6 +482,14 @@ snow.cirrus=(function(){
 		
 		//Convert the doc to an HTML structure.
 		var $doc=build(doc)[0];
+		
+		$doc.find("[data-hastip]").tooltip({
+			content:function(){
+				return $(this).data("tip");
+			},
+			items:"[data-hastip]",
+			tooltipClass:"-sno-tooltip"
+		});
 		
 		//Deindent and store for debugging.
 		var indent=99;

@@ -167,15 +167,30 @@ var snow=(function(){
 			}
 		}
 		
+		Map.prototype.toObject=function(){
+			var len=this.keys.length;
+			var obj={};
+			
+			for(var i=0;i<len;++i){
+				var v=this.keys[i];
+				if(typeof v!="string"){
+					return null;
+				}
+				obj[v]=this.vals[i];
+			}
+			
+			return obj;
+		}
+		
 		return Map;
 	})();
 	
 	//This must be available for default values.
 	function Tagset(tags,build_tag){
-		var bt=build_tag || function(args,kwargs){
+		var bt=build_tag || function(args,kwargs,data){
 			var def=this.tags[args[0]];
 			if(def){
-				return def(args,kwargs);
+				return def(args,kwargs,data);
 			}
 			return {
 				attrs:kwargs,
@@ -227,7 +242,7 @@ var snow=(function(){
 		}
 		
 		this.Tagset=Tagset
-		this.parse=function(s,ts){
+		this.parse=function(s,ts,data){
 			if(ts===undefined){
 				ts=Tagset([]);
 			}
@@ -473,10 +488,12 @@ var snow=(function(){
 					throw ParseError('Something went horribly wrong. Expected value, got "'+(this.text.slice(this.pos,this.pos+8)+this.pos>=this.text.length?"...":"")+'"',self.line,self.col);
 				}
 			
-				this.parse=function(s,data){
+				this.parse=function(data){
 					return this.parse_doc(/(?:[^\\{]|\\.)*/gm,data);
 				}
-			}).parse();
+				
+				this.Map=Map;
+			}).parse(data);
 		}
 	};
 })();
