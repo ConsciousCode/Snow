@@ -1,0 +1,30 @@
+{
+	"name":"snow",
+	"version":"1.0.0",
+	"description":"Official implementation of the compact and highly expressible textual data representation Snow.",
+	"keywords":[
+		"data",
+		"format",
+		"parser",
+		"snow"
+	],
+	"homepage":"https://github.com/ConsciousCode/Snow",
+	"license":"GPL",
+	"author":{
+		"name":"Robert McDaniels",
+		"email":"conscious.code@gmail.com",
+		"url":"https://github.com/ConsciousCode/"
+	},
+	"files":[
+		"lib/"
+	],
+	"directories":{
+		"lib":"lib/",
+		"doc":"doc/",
+		"example":"test/"
+	},
+	"repository":{
+		"type":"git",
+		"url":"https://github.com/ConsciousCode/Snow.git"
+	}
+}
