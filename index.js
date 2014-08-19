@@ -1,5 +1,4 @@
-var snow=require("./snow.js");
-var json=require("./snow.json.js");
+var snow=require("./lib/snow.js");
+var json=require("./lib/snow.json.js");
 
-exports.snow=snow;
-exports.json=json;
+module.exports=snow;

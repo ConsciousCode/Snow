@@ -8,8 +8,7 @@ Text can appear in tags as attribute names or values, and in sections. In tags, 
 
 Tag and attribute names can be text (quoted or unquoted), sections, or tags.
 
-<<<<<<< HEAD
-tl;dr:
+### tl;dr:
 * **Tagsets** define how to interpret tags and their attributes.
 * {**tags** ...} are for structured data (like JSON) and can have _positional_ or _named_ attributes.
   - {tagname "positional attribute" name:"named attribute"}
@@ -18,7 +17,7 @@ tl;dr:
 * [**sections** {with tags}] are for unstructured data (like XML).
   - [Close brackets \\] and open braces \\{ must be escaped in a section. Text escapes also work.]
   - Sections may only contain unquoted text and tags.
-* "**text**" 'in' all r"it's" r'forms' is for raw data.
+* "**text**" 'in' `all` it's forms is for raw data.
   - There is _only_ text - what it means is left to the tagset.
 * The **document** is the whole file and is a special-case section.
   - Close brackets ] _don't_ have to be escaped in the document's root.
@@ -27,8 +26,6 @@ tl;dr:
 [Example](https://docs.google.com/document/d/1cD9bDQs-frXRlzWZPJ3e5-jozZo8wKse2Ehfiqo5Gno/edit)
 
 ### API Documentation
-Note that snow.js and snow.json.js are designed to be loaded in any order.
-
 #### snow.js
 Snow.js exposes a single object named snow (for Node, it returns this object).
 
@@ -96,3 +93,11 @@ The snow object contains the following functions:
  - x - The object to minify.
  - tags - An object (same as ts for parse) used to strip names from named attributes in favor of implicit naming (to avoid this, pass {}).
  - f - Optional, an error first callback mostly used for Node compatibility (executes asynchronously - if not specified, minification returns synchronously).
+
+### snow.json.js
+Note that Snow JSON can represent -much- more than normal JSON, including all JS special constants (undefined, NaN, Infinity, etc), regexes, dates, HTML elements, infinitely recursive structures, and more.
+* tags - Tagset used by Snow JSON.
+* build - Build a JS object from a Snow JSON object.
+* stringify - Stringify a JS object into a Snow JSON object string representation.
+* minify - Stringify a JS object in the smallest possible representation.
+* parse - Convert a Snow JSON string representation to a JS object.
