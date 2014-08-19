@@ -25,6 +25,74 @@ tl;dr:
 
 [Specification](https://docs.google.com/document/d/1w7YcvZA8QE_bOgvff7Lgq4eUINM5rttW0hmHlb8hxcU/edit) (it's stupidly short)
 [Example](https://docs.google.com/document/d/1cD9bDQs-frXRlzWZPJ3e5-jozZo8wKse2Ehfiqo5Gno/edit)
-=======
-[Specification](https://docs.google.com/document/d/1w7YcvZA8QE_bOgvff7Lgq4eUINM5rttW0hmHlb8hxcU/edit)
->>>>>>> bf2316e517c6787d4e34508ac39acaba85332b9b
+
+### API Documentation
+Note that snow.js and snow.json.js are designed to be loaded in any order.
+
+#### snow.js
+Snow.js exposes a single object named snow (for Node, it returns this object).
+
+Notes:
+* Values (keys and values of named attributes and positional attributes) are all strings, tags, or arrays of strings or tags
+
+The snow object contains the following functions:
+* Tag - Object used to represent a tag in Snow.
+ - constructor
+  * keys - An array of keys for the named attributes of the tag (optional).
+  * vals - An array of values for the named attributes of the tag (optional).
+  * pos - An array of positional attributes of the tag (optional).
+ - apply - Apply a function to an item contained by the tag (mostly used as an internal utility function to reduce repetition for indexing values).
+  * key - The key to index.
+  * f - The callback to apply (takes an array and a key with this set to the tag).
+ - interpret - Interpret a positional attribute as a named attribute (mostly used internally to build tags).
+  * key - The name to give the attribute.
+ - eq - Compare the tag with another tag (always returns false for strings and arrays).
+ - get - Get the value with a particular key (int for a positional attribute, a Snow value for named attributes).
+ - set - Set the value with a particular key to a particular value.
+ - del - Delete the value with a particular key.
+ - has - Return if the tag has a value with the given key.
+ - iter - Implements the ECMAScript 6 iteration protocol (with the extra value name returned for the named attribute) to iterate over the tag's named attributes.
+* Tagdef - A utility factory function for creating a tag definition.
+ - attrn - Names (Snow values) to interpret positional attributes as named attributes. If these aren't explicitly set by a named attribute, positional attributes are assumed to be these (in order).
+ - build - A callback for intercepting the tag building process after it's been built. Takes the built tag and the extra data and should return a processed tag. By default this will just return tag.
+* Text - A function for building a text object (currently just a string).
+ - s - The string from which to build the text object.
+ - q - The quote character used (one of '"', "'", '`', or "")
+* Section - A function for building section object (currently just an array).
+ - x - The array from which to build the section object.
+* ParseError - A utility function for building an error related to parsing.
+ - msg - The main message of the error.
+ - line - The line on which the error occurs.
+ - col - The column on which the error occurs.
+ - extra - Extra data to keep with the error (used to give some reports specificity).
+* Parser - The main parser object.
+ - constructor
+  * ts - Either a tag or an object matching tag names to functions which build a tag from the given keys, values, and positional attributes (which will usually be created using Tagdef)
+ - peek - Check if the text at the current position matches the given regex.
+ - incr - Increment positioning variables according to the result.
+ - maybe - Try to match the regex if possible, else return null.
+ - expect - Parse a pattern that's expected (e.g. won't parse without) or else error.
+ - space - Helper function for parsing whitespace.
+ - parse_doc - Parse a document (also used in parse_section).
+  * txtpat - A regex matching the text that can be contained by the doc/section (allows this to be reused for sections)
+  * extra - Extra data object passed around for storing state during parsing.
+ - parse_tag - Parse and return a tag, else return null.
+  * extra - Extra data object passed around for storing state during parsing.
+ - parse_section - Parse a section, else return null.
+  * extra - Extra data object passed around for storing state during parsing.
+ - parse_value - Parse a value (text, section, or tag, biggest source of errors).
+  * extra - Extra data object passed around for storing state during parsing.
+ - parse - Parse a Snow document.
+  * s - The string from which to parse the document.
+  * extra - Extra data object passed around for storing state during parsing.
+* parse - Parse a Snow document without having to deal with the Parser object.
+ - s - The string from which to parse the document.
+ - ts - Either a tag or an object matching tag names to functions which build a tag from the given keys, values, and positional attributes (which will usually be created using Tagdef)
+ - extra - Extra data object passed around for storing state during parsing.
+* stringify - Stringify a Snow value (text/string, section/array, or tag, vanilla objects will cause errors).
+ - x - The object to stringify.
+ - f - Optional, an error first callback mostly used for Node compatibility (executes asynchronously - if not specified, stringification returns synchronously).
+* minify - Stringify a Snow value with the smallest possible representation. This is a little bit slower, and can reduce readability.
+ - x - The object to minify.
+ - tags - An object (same as ts for parse) used to strip names from named attributes in favor of implicit naming (to avoid this, pass {}).
+ - f - Optional, an error first callback mostly used for Node compatibility (executes asynchronously - if not specified, minification returns synchronously).
