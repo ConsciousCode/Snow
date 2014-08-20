@@ -1,5 +1,5 @@
 {
-	"name":"snow",
+	"name":"snow-lib",
 	"version":"1.0.0",
 	"description":"Official implementation of the compact and highly expressible textual data representation Snow.",
 	"keywords":[
