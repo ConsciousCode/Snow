@@ -63,7 +63,7 @@ var snow=(function(){
 		
 		this.line=typeof line=="undefined"?null:line;
 		this.col=typeof col=="undefined"?null:col;
-		this.pos=typeof pos=="undefined"?null:pos;
+		this.position=typeof pos=="undefined"?null:pos;
 	}
 	Flake.prototype.constructor=Flake;
 	
@@ -748,7 +748,7 @@ var snow=(function(){
 			//Not a tag
 			return null;
 		}
-		var line=ps.line,col=ps.col,p=ps.pos;
+		var line=ps.line,col=ps.col,p=ps.pos,tl=text.length;
 		
 		++ps.pos;
 		++ps.col;
@@ -756,7 +756,14 @@ var snow=(function(){
 		
 		var keys=[],vals=[],pos=[];
 		
-		while(text[ps.pos]!="}"){
+		while(ps.pos<tl){
+			if(text[ps.pos]=="}"){
+				++ps.pos;
+				++ps.col;
+				
+				return ps.build(keys,vals,pos,line,col,p,extra);
+			}
+			
 			var key=parse_value(text,ps,extra);
 			maybe(text,ps,SPACE);
 			
@@ -789,10 +796,8 @@ var snow=(function(){
 				pos.push(key);
 			}
 		}
-		++ps.pos;
-		++ps.col;
 		
-		return ps.build(keys,vals,pos,line,col,p,extra);
+		throw new ParseError("Unclosed tag",line,col);
 	}
 	
 	/**
@@ -846,7 +851,7 @@ var snow=(function(){
 		
 		if(text[ps.pos]!="]"){
 			throw new ParseError(
-				"Expected the end of a section.",ps.line,ps.col
+				"Expected the end of a section.",line,col
 			);
 		}
 		++ps.pos;

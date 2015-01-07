@@ -6,33 +6,21 @@ class ParseError(RuntimeError):
 		self.line=line
 		self.col=col
 
-class Tag:
-	def __init__(self,keys=None,vals=None,pos=None):
-		if keys is None:
-			vals=[]
-			vals=[]
-			pos=[]
-		elif vals is None:
-			vals=keys.values()
-			keys=keys.keys()
-			pos=[]
-		elif pos is None:
-			try:
-				pos=vals
-				vals=keys.values()
-				keys=keys.keys()
-			except AttributeError:
-				pos=[]
+class Flake:
+	def __init__(self,l,c,p):
+		self.line=l
+		self.col=c
+		self.position=p
+
+class Tag(Flake):
+	def __init__(self,keys,vals,pos,l=None,c=None,p=None):
+		Flake.__init__(self,l,c,p)
 		self.keys=keys
 		self.vals=vals
 		self.pos=pos
 	
-	def __iter__(self):
-		for x in range(len(self.pos)):
-			yield x,self.pos[x]
-		
-		for x in range(len(self.keys)):
-			yield self.keys[x],self.vals[x]
+	def visit(self,visitor,data=None):
+		return visitor.visit_tag(self,data)
 	
 	def __has__(self,key):
 		if type(key) is int:
@@ -65,11 +53,16 @@ class Tag:
 		
 		self.vals[k]=val
 	
-	def append(self,val):
+	def add(self,val):
 		self.pos.append(val)
 	
 	def __repr__(self):
-		return "Tag({!r}, {!r}, {!r})".format(self.keys,self.vals,self.pos)
+		if self.line is None or self.col is None or self.position is None:
+			return "Tag({!r}, {!r}, {!r})".format(self.keys,self.vals,self.pos)
+		return "Tag({!r}, {!r}, {!r}, {}, {}, {})".format(
+			self.keys,self.vals,self.pos,
+			self.line,self.col,self.position
+		)
 	
 	def __str__(self):
 		if len(self.pos)>1:
@@ -112,14 +105,23 @@ class Tag:
 		except AttributeError:
 			return False
 
-class Text:
-	def __init__(self,text=None):
-		if text is None:
-			text=""
+class Text(Flake):
+	UNQUOTED=re.compile(r'''^((?:[^\s+\\{:}[\]"'`]|\\.)*)$''',re.M)
+	
+	def __init__(self,text="",l=None,c=None,p=None):
+		Flake.__init__(self,l,c,p)
 		self.text=text
 	
+	def visit(self,visitor,data=None):
+		return visitor.visit_text(self,data)
+	
 	def __repr__(self):
-		return "Text({!r})".format(self.text)
+		if self.line is None or self.col is None or self.position is None:
+			return "Text({!r})".format(self.text)
+		return "Text({!r}, {}, {}, {})".format(
+			self.text,
+			self.line,self.col,self.position
+		)
 	
 	def __str__(self):
 		val=self.text
@@ -128,6 +130,8 @@ class Text:
 		bq=val.count('`')
 		
 		if dq==0 and sq==0 and bq==0:
+			if Text.UNQUOTED.match(val) is None:
+				return '"{}"'.format(val)
 			return val
 		elif dq>=sq and dq>=bq:
 			return '"{}"'.format(val.replace('"','\\"'))
@@ -142,16 +146,16 @@ class Text:
 		except AttributeError:
 			return False
 
-class Section:
-	def __init__(self,items=None):
+class Section(Flake):
+	def __init__(self,items=None,l=None,c=None,p=None):
+		Flake.__init__(self,l,c,p)
 		self.items=items or []
 	
-	def append(self,val):
-		self.items.append(val)
+	def visit(self,visitor,data=None):
+		return visitor.visit_section(self,data)
 	
-	def __iter__(self):
-		for x in range(len(self.items)):
-			yield self.items[x]
+	def add(self,val):
+		self.items.append(val)
 	
 	def __has__(self,val):
 		return val in self.items
@@ -163,7 +167,12 @@ class Section:
 		self.items[key]=val
 	
 	def __repr__(self):
-		return "Section({!r})".format(self.items)
+		if self.line is None or self.col is None or self.position is None:
+			return "Section({!r})".format(self.items)
+		return "Section({!r}, {}, {}, {})".format(
+			self.items,
+			self.line,self.col,self.position
+		)
 	
 	def __str__(self):
 		return "[{}]".format(''.join(str(x) for x in self.items))
@@ -176,7 +185,15 @@ class Section:
 
 class Document(Section):
 	def __repr__(self):
-		return "Document({!r})".format(self.items)
+		if self.line is None or self.col is None or self.position is None:
+			return "Document({!r})".format(self.items)
+		return "Document({!r}, {}, {}, {})".format(
+			self.items,
+			self.line,self.col,self.position
+		)
+	
+	def visit(self,visitor,data):
+		return visitor.visit_doc(self,data)
 	
 	def __str__(self):
 		return "{}".format(''.join(str(x) for x in self.items))
@@ -187,37 +204,39 @@ class Parser:
 	NEWLINE=re.compile(r"\r\n|\n|\r",re.M)
 	SPACE=re.compile(r"\s+")
 	QUOTED_TEXT=re.compile(
-		r'''"([^\\"]*|\\.)"|'([^\\']*|\\.)'|`([^\\`]*|\\.)`''',re.M
+		r'''"((?:[^\\"]|\\.)*)"|'((?:[^\\']|\\.)*)'|`((?:[^\\`]|\\.)*)`''',
+		re.M
 	)
-	UNQUOTED_TEXT=re.compile(r'''(?:[^\s{}\[\]:"'`]|\\.)+''',re.M)
-	ESCAPE_UNQUOTED=re.compile(r'''\\([^\s\\{}\[\]:"'`])''',re.M)
+	DQ_ESCAPE=re.compile(r'\\([\\"])')
+	SQ_ESCAPE=re.compile(r"\\([\\'])")
+	BQ_ESCAPE=re.compile(r'\\([\\`])')
+	UNQUOTED_TEXT=re.compile(r'''(?:[^\s{:}[\]"'`]|\\.)+''',re.M)
+	UNQUOTED_ESCAPE=re.compile(r'''\\([\s\\{:}[\]"'`])''',re.M)
 	
-	def __init__(self,ts=None):
-		self.ts=ts
+	def __init__(self,build=None):
+		self.build=build or Tag
 		self.colonline=0
 		self.coloncol=0
 		self.line=0
 		self.col=1
 		self.pos=0
-		self.text=None
 	
-	def maybe(self,pattern):
-		m=pattern.match(self.text,self.pos)
-		if m and m.start()==self.pos:
-			self.pos+=len(m.group(0))
-			lines=re.split(Parser.NEWLINE,m.group(0))
-			if len(lines)>1:
+	def maybe(self,text,pattern):
+		m=pattern.match(text,self.pos)
+		if m:
+			m0=m.group(0)
+			self.pos+=len(m0)
+			lines=Parser.NEWLINE.findall(m0)
+			if len(lines)>0:
 				self.line+=len(lines)-1
-				self.col=len(lines[-1])
+				self.col=len(m0)-lines[-1].end()
 			else:
-				self.col+=len(lines[0])
+				self.col+=len(m0)
 			
 			return m
-		else:
-			return None
+		return None
 	
-	def parse_section(self,extra):
-		text=self.text
+	def parse_section(self,text,extra):
 		tl=len(text)
 		if self.pos>=tl or text[self.pos]!='[':
 			return None
@@ -226,17 +245,17 @@ class Parser:
 		
 		items=[]
 		st=True
-		tag=True
-		while st or tag:
-			st=self.maybe(Parser.SECTION_TEXT)
+		tg=True
+		while st or tg:
+			st=self.maybe(text,Parser.SECTION_TEXT)
 			if st:
 				if st.group(0):
-					items.append(Text(re.sub(Parser.NEWLINE,'\n',st.group(0))))
+					items.append(Text(Parser.NEWLINE.sub('\n',st.group(0))))
 				else:
-					st=None
+					st=False
 			
-			tag=self.parse_tag(extra)
-			if tag:
+			tg=self.parse_tag(text,extra)
+			if tg:
 				items.append(tag)
 		
 		if self.pos>=tl or text[self.pos]!=']':
@@ -248,103 +267,90 @@ class Parser:
 		self.col+=1
 		return Section(items)
 	
-	def parse_value(self,extra):
-		val=self.maybe(Parser.QUOTED_TEXT)
-		if val:
-			if val.group(1):
+	def parse_value(self,text,extra):
+		l=self.line
+		c=self.col
+		p=self.pos
+		v=self.maybe(text,Parser.QUOTED_TEXT)
+		if v:
+			if v.group(1):
 				text=v.group(1)
-				q='"'
-			elif val.group(2):
+				q=Parser.DQ_ESCAPE
+			elif v.group(2):
 				text=v.group(2)
-				q="'"
+				q=Parser.SQ_ESCAPE
 			else:
 				text=v.group(3)
-				q='`'
+				q=Parser.BQ_ESCAPE
 			
-			return Text(re.sub(
-				Parser.ESCAPE,
-				lambda m:(
-					q if m.group(1)==q
-					else '\\' if m.group(1)=='\\'
-					else m.group(0)
-				),
-				text
-			))
+			return Text(re.sub(q,r"\1",text),l,c,p)
 		
-		val=self.maybe(Parser.UNQUOTED_TEXT)
-		if val:
-			return Text(re.sub(
-				Parser.ESCAPE_UNQUOTED,
-				lambda m:m.group(1),
-				val.group(0)
-			))
+		v=self.maybe(text,Parser.UNQUOTED_TEXT)
+		if v:
+			return Text(re.sub(Parser.UNQUOTED_ESCAPE,r"\1",v.group(0)),l,c,p)
 		
-		val=self.parse_tag(extra)
-		if val:
-			return val
+		v=self.parse_tag(text,extra)
+		if v:
+			return v
 		
-		val=self.parse_section(extra)
-		if val:
-			return val
+		v=self.parse_section(text,extra)
+		if v:
+			return v
 		
-		if self.pos>=self.text.length:
+		if self.pos>=len(text):
 			raise ParseError(
-				"reached end of string/file while parsing a tag",
-				self.line,self.col
+				"reached end of string/file while parsing a tag",l,c
 			)
 		
-		c=self.text[self.pos]
+		x=text[p]
 		
 		#if there's a string start, there's a string that ends with EOF
-		if c in '"\'`':
+		if x in '"\'`':
 			raise ParseError(
-				"Missing terminating {} character".format(c),self.line,self.col
+				"Missing terminating {} character".format(x),l,c
 			)
 		
-		if c==']':
+		if x==']':
 			raise ParseError(
 				"Unexpected close bracket ]. Did you forget to close a tag?",
-				self.line,self.col-1
+				l,c-1
 			)
 		
-		if c=="}":
+		if x=="}":
 			raise ParseError(
 				"Forgot to assign a value to the named attribute.",
 				self.colonline,self.coloncol+1
 			)
 		
-		if c==":":
+		if x==":":
 			raise ParseError(
 				"The colon is disallowed in unquoted text.",
-				self.line,self.col-1
+				l,c-1
 			)
 		
 		#indicates an error in the parser's code. "Shouldn't happen"
-		if c.isspace():
+		if x.isspace():
 			raise ParseError(
 				"Expected a value, found whitespace. "+
-				"There's a problem with the API's parser code.",
-				self.line,self.col
+				"There's a problem with the API's parser code.",l,c
 			)
 		
 		#reserved for cosmic ray errors
 		raise ParseError(
 			'Something is horribly wrong. Expected value, got "{}{}"'.format(
-				self.text.slice(self.pos,self.pos+8),
-				("..." if self.pos>=len(self.text) else "")
-			),
-			self.line,self.col
+				text.slice(p,p+8),
+				("..." if p>=len(text) else "")
+			),l,c
 		)
 	
-	def parse_tag(self,extra):
-		text=self.text
+	def parse_tag(self,text,extra):
 		tl=len(text)
 		if self.pos>=tl or text[self.pos]!="{":
 			return None
 		self.pos+=1
 		self.col+=1
 		
-		self.maybe(Parser.SPACE)
+		self.maybe(text,Parser.SPACE)
 		
 		keys=[]
 		vals=[]
@@ -354,46 +360,38 @@ class Parser:
 				self.pos+=1
 				self.col+=1
 				break
-			key=self.parse_value(extra)
+			key=self.parse_value(text,extra)
 			
-			self.maybe(Parser.SPACE)
+			self.maybe(text,Parser.SPACE)
 			
 			if self.pos<tl and text[self.pos]==":":
+				if key in keys:
+					raise ParseError(
+						"duplicate named attribute {}".format(key),
+						self.line,self.col
+					)
+				
 				self.colonline=self.line
 				self.coloncol=self.col
 				
 				self.pos+=1
 				self.col+=1
 				
-				self.maybe(Parser.SPACE)
-				val=self.parse_value(extra)
-				self.maybe(Parser.SPACE)
+				self.maybe(text,Parser.SPACE)
+				val=self.parse_value(text,extra)
+				self.maybe(text,Parser.SPACE)
 				
-				try:
-					k=keys.index(key)
-					v=vals[k]
-					if type(v) is Section:
-						v.append(val)
-					else:
-						vals[k]=Section(v,val)
-				except ValueError:
-					keys.append(key)
-					vals.append(val)
+				keys.append(key)
+				vals.append(val)
 			else:
 				pos.append(key)
 		else:
 			raise ParseError(
 				"reached end of string while parsing tag",
-				self.line,serf.col
+				self.line,self.col
 			)
 		
-		if self.ts:
-			if len(pos):
-				k=pos[0]
-			else:
-				k=None
-			return self.ts[k](keys,vals,pos,extra)
-		return Tag(keys,vals,pos)
+		return self.build(keys,vals,pos,self.line,self.col,self.pos)
 	
 	def parse(self,text,extra=None):
 		self.colonline=0
@@ -401,23 +399,25 @@ class Parser:
 		self.line=0
 		self.col=1
 		self.pos=0
-		self.text=text
 		
 		items=[]
-		text=True
-		tag=True
-		while text or tag:
-			text=self.maybe(Parser.DOCUMENT_TEXT)
-			if text:
-				if text.group(0):
+		tx=True
+		tg=True
+		while tx or tg:
+			tx=self.maybe(text,Parser.DOCUMENT_TEXT)
+			if tx:
+				if tx.group(0):
 					items.append(
-						Text(re.sub(Parser.NEWLINE,"\n",text.group(0)))
+						Text(re.sub(Parser.NEWLINE,"\n",tx.group(0)))
 					)
 				else:
-					text=None
+					tx=False
 			
-			tag=self.parse_tag(extra)
-			if tag:
-				items.append(tag)
+			tg=self.parse_tag(text,extra)
+			if tg:
+				items.append(tg)
 		
 		return Document(items)
+
+def parse(text,build=None):
+	return Parser(build).parse(text)

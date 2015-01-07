@@ -101,7 +101,7 @@ public Parser{
 			c=='\v' || c=='\f' ||
 			//Unicode chars NEL (NExt Line), LS (Line Separator), and
 			// PS (Paragraph Separator)
-			c=='\u0085' || c=='\u2028' || c=='\2029'
+			c=='\u0085' || c=='\u2028' || c=='\u2029'
 		){
 			++line;
 			col=0;

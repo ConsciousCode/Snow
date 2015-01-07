@@ -1,6 +1,11 @@
 .npmignore
 bin/
 obj/
+__pycache__/
 *.cbp
 *.depend
 *.layout
+
+*.pyc
+*.class
+*.o

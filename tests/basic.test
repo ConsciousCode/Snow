@@ -1,0 +1,5 @@
+{root1 "pos" 'pos' `pos` pos name:attr}
+{root2 [section {tag}] name:[section {tag}]}
+/* --- */
+(3{4"5:root1""3:pos""3:pos""3:pos""3:pos"1"4:name""4:attr"}"1:
+"{2"5:root2"[2"7:section"{1"3:tag"0}]1"4:name"[2"7:section"{1"3:tag"0}]})
