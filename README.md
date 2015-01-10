@@ -17,7 +17,7 @@ Tag and attribute names can be text (quoted or unquoted), sections, or tags.
 * [**sections** {with tags}] are for unstructured/markup data.
   - Close brackets ] and open braces { must be escaped in a section using a backslash \. Other occurrences just result in a backslash.
   - Sections may only contain unquoted text and tags.
-* "**text**" 'in' `all` its forms is for raw data.
+* "**text**" 'in' \`all\` its forms is for raw data.
   - There is _only_ text - what it means is left to the tagset (true/false/numbers/etc).
 * The **document** is the whole file and is a special-case section.
   - Close brackets ] _don't_ have to be escaped in the document's root.

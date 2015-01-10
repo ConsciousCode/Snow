@@ -12,54 +12,74 @@ public class Section extends Flake{
 	**/
 	protected List<Flake> flakes;
 	
+	public Section(){
+		flakes=new ArrayList<Flake>();
+	}
+	
+	/**
+	 * Initialize the section with a pre-made list.
+	**/
+	public Section(List<Flake> L){
+		flakes=L;
+	}
+	
+	public Section(List<Flake> L,int l,int c,int p){
+		super(l,c,p);
+		flakes=L;
+	}
+	
 	public boolean is_section(){
 		return true;
 	}
 	
-	public toString(){
-		StringBuilder sb("[");
+	public String toString(){
+		StringBuilder sb=new StringBuilder("[");
 		
 		for(Flake f: flakes){
 			Text txt=f.as_text();
-			if(t){
-				sb.add(txt.get());
+			if(txt!=null){
+				sb.append(txt.value().replaceAll("([\\\\{\\]])","\\\\$1"));
 			}
 			else{
-				sb.add(f.toString());
+				sb.append(f.toString());
 			}
 		}
 		
-		sb.add("]");
+		sb.append("]");
 		return sb.toString();
 	}
 	
 	//Could make smaller if whitespace could be trimmed, but there's no way
 	// to nicely communicate that.
-	public minify(Tagset t){
+	public String minify(Tagset t){
 		StringBuilder sb=new StringBuilder("[");
 		
 		for(Flake f: flakes){
 			Text txt=f.as_text();
-			if(t){
-				sb.append(txt.get());
+			if(t!=null){
+				sb.append(txt.value());
 			}
 			else{
 				sb.append(f.minify(t));
 			}
 		}
 		
-		sb.add("]");
+		sb.append("]");
 		return sb.toString();
 	}
 	
 	public boolean equals(Object o){
+		if(this==o){
+			return true;
+		}
+		
 		if(o instanceof Flake){
 			Section s=((Flake)o).as_section();
-			if(s){
+			if(s!=null){
 				int size=flakes.size();
 				if(size==s.flakes.size()){
 					//Easily compared backwards and forwards
-					while(size--){
+					for(;size>0;--size){
 						if(!get(size).equals(s.get(size))){
 							return false;
 						}
@@ -71,19 +91,6 @@ public class Section extends Flake{
 		}
 		
 		return false;
-	}
-	
-	public Section(){
-		flakes=new ArrayList<Flake>();
-	}
-	
-	/**
-	 * Initialize the section with two flakes (used for attribute merging).
-	**/
-	public Section(Flake a,Flake b){
-		flakes=new ArrayList<Flake>();
-		flakes.add(a);
-		flakes.add(b);
 	}
 	
 	/**
@@ -99,6 +106,9 @@ public class Section extends Flake{
 	 * @return The old value.
 	**/
 	public Flake set(int x,Flake f){
+		if(f.is_section()){
+			return null;
+		}
 		return flakes.set(x,f);
 	}
 	
@@ -108,6 +118,9 @@ public class Section extends Flake{
 	 * @return The added flake.
 	**/
 	public Flake add(Flake f){
+		if(f.is_section()){
+			return null;
+		}
 		flakes.add(f);
 		return f;
 	}
@@ -136,6 +149,8 @@ public class Section extends Flake{
 	}
 	
 	/**
+	 * @note This may be removed as it breaks encapsulation.
+	 *
 	 * @return The internal list object used to represent the section.
 	**/
 	public List<Flake> getFlakes(){

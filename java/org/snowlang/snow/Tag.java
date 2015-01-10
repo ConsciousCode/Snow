@@ -6,7 +6,7 @@ import java.util.ArrayList;
 /**
  * Snow tag object, an associative array.
 **/
-public class Tag{
+public class Tag extends Flake{
 	/**
 	 * Named attribute tag names.
 	**/
@@ -20,26 +20,56 @@ public class Tag{
 	**/
 	protected List<Flake> pos;
 	
-	public is_tag(){
+	public Tag(){
+		super();
+		keys=new ArrayList<Flake>();
+		vals=new ArrayList<Flake>();
+		pos=new ArrayList<Flake>();
+	}
+	
+	public Tag(List<Flake> k,List<Flake> v,List<Flake> p){
+		super();
+		keys=k;
+		vals=v;
+		pos=p;
+	}
+	
+	public Tag(List<Flake> k,List<Flake> v,List<Flake> p,int l,int c,int tp){
+		super(l,c,tp);
+		keys=k;
+		vals=v;
+		pos=p;
+	}
+	
+	public boolean is_tag(){
 		return true;
 	}
 	
 	public String toString(){
+		int psize=pos.size(),ksize=keys.size();
+		if(psize==0 && ksize==0){
+			return "{}";
+		}
+		
 		StringBuilder sb=new StringBuilder("{");
 		
-		int psize=pos.size(),ksize=keys.size();
-		if(psize){
+		if(psize>0){
 			sb.append(pos.get(0).toString());
 			
-			if(ksize){
+			for(int i=1;i<psize;++i){
+				sb.append(" ");
+				sb.append(pos.get(i).toString());
+			}
+			
+			if(ksize>0){
 				sb.append(" ");
 			}
 		}
 		
-		if(ksize){
-			sb.append(keys.get(i).toString());
+		if(ksize>0){
+			sb.append(keys.get(0).toString());
 			sb.append(":");
-			sb.append(vals.get(i).toString());
+			sb.append(vals.get(0).toString());
 		}
 		
 		for(int i=1;i<ksize;++i){
@@ -47,11 +77,6 @@ public class Tag{
 			sb.append(keys.get(i).toString());
 			sb.append(":");
 			sb.append(vals.get(i).toString());
-		}
-		
-		for(int i=1;i<psize;++i){
-			sb.append(" ");
-			sb.append(pos.get(i).toString());
 		}
 		
 		sb.append("}");
@@ -68,7 +93,7 @@ public class Tag{
 	 * @return Whether the given string is unquoted.
 	**/
 	private static boolean unquoted(String s,boolean e){
-		const String cs="{:}[]\"'`";
+		final String cs="{:}[]\"'`";
 		if(e){
 			return cs.indexOf(s.charAt(s.length()-1))<0;
 		}
@@ -76,6 +101,8 @@ public class Tag{
 	}
 	
 	public String minify(Tagset ts){
+		return "Tag(NOT IMPLEMENTED YET)";
+		/*
 		ArrayList<String>
 			n=new ArrayList<String>(keys.size()),
 			p=new ArrayList<String>(pos.size());
@@ -119,5 +146,6 @@ public class Tag{
 		
 		sb.append("}");
 		return sb.toString();
+		*/
 	}
 }

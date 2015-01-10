@@ -8,4 +8,7 @@ __pycache__/
 
 *.pyc
 *.class
+*.project
+*.classpath
+*.jar
 *.o
