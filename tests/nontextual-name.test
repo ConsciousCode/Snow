@@ -1,0 +1,5 @@
+{{[tag]}}
+{[section{tag}]}
+{tag {attr}:value}
+{tag [attr]:value}
+~~(8{1[1{1"3:tag"0}]0}"1:~A."{1[2"7:section"{1"3:tag"0}]}"1:~A."{1"3:tag"1{1"4:attr"0}"5:value"}"1:~A."{1"3:tag"1[1"4:attr"]"5:value"}"1:~A.")

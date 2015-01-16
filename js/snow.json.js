@@ -35,12 +35,12 @@ var json=(function(){
 	var COMMENT={};
 	
 	//Use to simplify extended properties on objects
-	function build_properties(obj,tag){
+	function build_properties(obj,tag,data){
 		var keys=tag.keys,vals=tag.vals,kl=keys.length;
 		while(kl--){
 			var k=keys[kl];
 			if(k instanceof snow.Text){
-				var x=this.visit(vals[kl],data);
+				var x=vals[kl].visit(this,data);
 				if(x!==COMMENT){
 					obj[k.value]=x;
 				}
@@ -119,20 +119,20 @@ var json=(function(){
 		"%":function build_object(tag,data){
 			var obj={};
 			data.memo.push(obj);
-			return build_properties(obj,tag);
+			return build_properties.call(this,obj,tag,data);
 		},
 		",":function build_array(tag,data){
 			var arr=[],pos=tag.pos,pl=pos.length;
 			data.memo.push(arr);
-			for(var i=0;i<pl;++i){
-				var x=this.visit(pos[i],data);
+			for(var i=1;i<pl;++i){
+				var x=pos[i].visit(this,data);
 				if(x!==COMMENT){
 					arr.push(x);
 				}
 			}
 			
 			//Some arrays have custom properties
-			return build_properties(arr,tag);
+			return build_properties.call(this,arr,tag,data);
 		},
 		//non-fundamental built in types
 		".":function build_regex(tag,data){
@@ -164,7 +164,7 @@ var json=(function(){
 			var r=new RegExp(pattern.value,mode);
 			data.memo_objects(x);
 			data.memo_results(r);
-			return build_properties(r,tag);
+			return build_properties.call(this,r,tag,data);
 		},
 		//literals
 		"":function build_undefined(){
@@ -270,9 +270,9 @@ var json=(function(){
 					throw new JSONError("Unknown tag "+name.value);
 				}
 				
-				return t(tag,data);
+				return t.call(this,tag,data);
 			},
-			parse_text:function parse_text(text){
+			visit_text:function parse_text(text){
 				return text.value;
 			}
 		},data);

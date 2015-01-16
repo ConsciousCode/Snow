@@ -63,7 +63,7 @@ var snow=(function(){
 		
 		this.line=typeof line=="undefined"?null:line;
 		this.col=typeof col=="undefined"?null:col;
-		this.position=typeof pos=="undefined"?null:pos;
+		this.pos=typeof pos=="undefined"?null:pos;
 	}
 	Flake.prototype.constructor=Flake;
 	
@@ -474,6 +474,28 @@ var snow=(function(){
 	
 	/**
 	 * @export
+	 *
+	 * @param {number} x - The index to get.
+	 * @return {Text|Tag|undefined} The Snow object at the index.
+	**/
+	Section.prototype.get=function get(x){
+		return this.value[x];
+	}
+	
+	/**
+	 * @export
+	 *
+	 * @param {number} x - The index to set.
+	 * @param {Text|Tag} v - The new value.
+	**/
+	Section.prototype.set=function set(x,v){
+		if(v instanceof Text || v instanceof Tag){
+			this.value[x]=v;
+		}
+	}
+	
+	/**
+	 * @export
 	 * @override
 	 *
 	 * @param {*} x - The object to compare to the section.
@@ -752,11 +774,11 @@ var snow=(function(){
 		
 		++ps.pos;
 		++ps.col;
-		maybe(text,ps,SPACE);
 		
 		var keys=[],vals=[],pos=[];
 		
 		while(ps.pos<tl){
+			maybe(text,ps,SPACE);
 			if(text[ps.pos]=="}"){
 				++ps.pos;
 				++ps.col;
@@ -788,8 +810,6 @@ var snow=(function(){
 						ps.line,ps.col
 					);
 				}
-				
-				maybe(text,ps,SPACE);
 			}
 			else{
 				//Just a normal position attribute

@@ -113,7 +113,7 @@ public class Parser{
 	 * @return The reinterpreted character (either c or \n).
 	**/
 	protected int calc_line(Reader it,int c) throws IOException{
-		int x='\n';
+		int x;
 		switch(c){
 			case '\r':
 				x=next(it);
@@ -124,7 +124,6 @@ public class Parser{
 				else{
 					nextc=x;
 					hasnext=true;
-					x='\n';
 				}
 			case '\n':
 			case '\u002b'://\v
@@ -134,7 +133,7 @@ public class Parser{
 			case '\u2029':
 				++line;
 				col=0;
-				return x;
+				return '\n';
 			default:
 				++col;
 				return c;

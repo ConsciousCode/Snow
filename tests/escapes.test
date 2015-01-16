@@ -1,0 +1,3 @@
+\[\]\{\}
+{escapes \\\{\:\}\[\]\"\'\`\  "\"\'\`" '\"\'\`' `\"\'\`` [\[\]\{\}] unrecognized:\a\b\t\f\v\uabcde\xab quoted:"\a\b\t\f\v\uabcde\xab"}
+\~~(3"8:\[\]{\}~A."{5"9:\{:}[]"'` ""5:"\'\`""5:\"'\`""5:\"\'`"[1"6:\[]{\}"]2"6:quoted""21:\a\b\t\f\v\uabcde\xab""12:unrecognized""21:\a\b\t\f\v\uabcde\xab"}"2:~A.\")
