@@ -88,8 +88,9 @@
 					}
 				}
 				
-				req.open("https://raw.githubusercontent.com/"+
-					"ConsciousCode/Snow/master/tests/"+file+".test"
+				req.open("get","https://raw.githubusercontent.com/"+
+					"ConsciousCode/Snow/master/tests/"+file+".test",
+					true
 				);
 				req.send();
 			}
