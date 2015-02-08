@@ -2,6 +2,8 @@
 bin/
 obj/
 __pycache__/
+.dev/
+
 *.cbp
 *.depend
 *.layout

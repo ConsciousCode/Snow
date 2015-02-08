@@ -56,52 +56,50 @@ var snow=(function(){
 	 * @param {number=} line - The position at which the flake occurred, else
 	 *  null.
 	**/
-	function Flake(line,col,pos){
+	function Flake(line,col){
 		if(!(this instanceof Flake)){
-			return new Flake(line,col,pos);
+			return new Flake(line,col);
 		}
 		
 		this.line=typeof line=="undefined"?null:line;
 		this.col=typeof col=="undefined"?null:col;
-		this.pos=typeof pos=="undefined"?null:pos;
 	}
-	Flake.prototype.constructor=Flake;
-	
-	/**
-	 * Compare two Snow objects. True only if the other is the exact same
-	 *  object.
-	 *
-	 * @export
-	 *
-	 * @param {Flake} x - The other object to compare to.
-	 *
-	 * @return {boolean} Whether or not the two are equivalent.
-	**/
-	Flake.prototype.eq=function eq(x){
-		return this==x;
-	}
-	
-	/**
-	 * Visit the object using the visitor pattern. Flake should never appear
-	 *  in a document, so this does nothing at all.
-	 *
-	 * @export
-	 *
-	 * @param {Object.<string, function(!Flake,?)>} visitor - The visitor.
-	 * @param {?} data - Any data required by the visitor.
-	**/
-	Flake.prototype.visit=function visit(visitor,data){}
-	
-	/**
-	 * @export
-	 *
-	 * @return {string} The textual representation of the Snow object - as
-	 *  this should never appear in a document, this always returns a snowflake
-	 *  character.
-	**/
-	Flake.prototype.toString=function toString(){
-		return "\u2744";
-	}
+	var p=Flake.prototype={
+		"constructor":Flake,
+		/**
+		 * Compare two Snow objects. True only if the other is the exact same
+		 *  object.
+		 *
+		 * @export
+		 *
+		 * @param {Flake} x - The other object to compare to.
+		 *
+		 * @return {boolean} Whether or not the two are equivalent.
+		**/
+		"equals":function(x){
+			return this==x;
+		},
+		/**
+		 * Visit the object using the visitor pattern. Flake should never 
+		 *  appear in a document, so this does nothing at all.
+		 *
+		 * @export
+		 *
+		 * @param {Object.<string, function(!Flake,?)>} visitor - The visitor.
+		 * @param {?} data - Any data required by the visitor.
+		**/
+		"visit":function(visitor,data){},
+		/**
+		 * @export
+		 *
+		 * @return {string} The textual representation of the Snow object. As
+		 *  this should never appear in a document, this always returns a 
+		 *  snowflake character.
+		**/
+		"toString":function(){
+			return "\u2744";
+		}
+	};
 	
 	/**
 	 * A Snow tag, acts as an associative array from Snow objects/integers
@@ -118,18 +116,18 @@ var snow=(function(){
 	 *  attributes.
 	 * @param {Array.<Flake>=} pos - An array of the positional attributes.
 	**/
-	function Tag(keys,vals,pos,l,c,p){
+	function Tag(keys,vals,pos,line,col){
 		if(!(this instanceof Tag)){
 			return new Tag(keys,vals,pos);
 		}
-		Flake.call(this,l,c,p);
+		Flake.call(this,line,col);
 		
 		/** @type {Array.<Flake>} **/ this.keys=keys||[];
 		/** @type {Array.<Flake>} **/ this.vals=vals||[];
 		/** @type {Array.<Flake>} **/ this.pos=pos||[];
 	}
-	Tag.prototype=Object.create(Flake.prototype);
-	Tag.prototype.constructor=Tag;
+	p=Tag.prototype=Object.create(p);
+	p.constructor=Tag;
 	
 	/**
 	 * Apply a function to a retrieved value and return the result.
@@ -156,7 +154,7 @@ var snow=(function(){
 		var keys=t.keys,kl=keys.length;
 		while(kl--){
 			var k=keys[kl];
-			if(x.eq(k)){
+			if(x.equals(k)){
 				return f.call(t,t.vals,kl);
 			}
 		}
@@ -171,7 +169,7 @@ var snow=(function(){
 	 *
 	 * @return {boolean} Whether or not the tag is equal to another object.
 	**/
-	Tag.prototype.eq=function eq(x){
+	p.equals=function(x){
 		if(x instanceof Tag){
 			var keys=this.keys,kl=keys.length,okeys=x.keys;
 			var pos=this.pos,pl=pos.length,opos=x.pos;
@@ -186,7 +184,7 @@ var snow=(function(){
 				//Compare keys
 				var k=keys[kl];
 				if(k instanceof Tag){
-					if(!k.eq(okeys[kl])){
+					if(!k.equals(okeys[kl])){
 						return false;
 					}
 				}
@@ -199,7 +197,7 @@ var snow=(function(){
 				//Compare values
 				var v=vals[kl];
 				if(v instanceof Tag){
-					if(!v.eq(ovals[kl])){
+					if(!v.equals(ovals[kl])){
 						return false;
 					}
 				}
@@ -214,7 +212,7 @@ var snow=(function(){
 			while(pl--){
 				var p=pos[pl];
 				if(p instanceof Tag){
-					if(!ps.eq(opos[kl])){
+					if(!ps.equals(opos[kl])){
 						return false;
 					}
 				}
@@ -242,7 +240,7 @@ var snow=(function(){
 	 *
 	 * @return {Flake|undefined} The value at the given key.
 	**/
-	Tag.prototype.get=function get(x){
+	p.get=function(x){
 		return tag_apply(this,x,function(o,k){
 			if(k===null){
 				return;
@@ -264,7 +262,7 @@ var snow=(function(){
 	 *
 	 * @return {Flake} The new value at the given key.
 	**/
-	Tag.prototype.set=function set(x,v){
+	p.set=function(x,v){
 		return tag_apply(this,x,function(o,k){
 			if(k===null){
 				if(o){
@@ -289,7 +287,7 @@ var snow=(function(){
 	 *
 	 * @param {Flake|number} x - The key of the object to delete.
 	**/
-	Tag.prototype.del=function del(x){
+	p.del=function(x){
 		tag_apply(this,x,function(o,k){
 			if(k!==null){
 				this.keys.splice(k,1);
@@ -304,7 +302,7 @@ var snow=(function(){
 	 * @param {Flake|number} x - The key of the object to find.
 	 * @return {boolean} Whether or not the tag has a value with the given key.
 	**/
-	Tag.prototype.has=function has(x){
+	p.has=function(x){
 		return tag_apply(this,x,function(o,k){
 			return k!==null;
 		});
@@ -319,7 +317,7 @@ var snow=(function(){
 	 * @param {{visit_tag:function(!Flake,?)}} visitor - The visitor.
 	 * @param {?=} data - Any data the visitor needs.
 	**/
-	Tag.prototype.visit=function visit(visitor,data){
+	p.visit=function(visitor,data){
 		return visitor.visit_tag(this,data);
 	}
 	
@@ -329,7 +327,7 @@ var snow=(function(){
 	 *
 	 * @return {string} The string version of the tag.
 	**/
-	Tag.prototype.toString=function toString(){
+	p.toString=function(){
 		var keys=this.keys,kl=keys.length,vals=this.vals;
 		var pos=this.pos,pl=pos.length,content=[];
 		
@@ -357,12 +355,12 @@ var snow=(function(){
 	 *
 	 * @param {string} x - The text to use. 
 	**/
-	function Text(x,l,c,p){
+	function Text(x,l,c){
 		if(!(this instanceof Text)){
-			return new Text(x);
+			return new Text(x,l,c);
 		}
 		
-		Flake.call(this,l,c,p);
+		Flake.call(this,l,c);
 		
 		/**
 		 * The text stored by the object.
@@ -371,8 +369,8 @@ var snow=(function(){
 		**/
 		this.value=x;
 	}
-	Text.prototype=Object.create(Flake.prototype);
-	Text.prototype.constructor=Text;
+	p=Text.prototype=Object.create(Flake.prototype);
+	p.constructor=Text;
 	
 	/**
 	 * @export
@@ -382,7 +380,7 @@ var snow=(function(){
 	 *
 	 * @return {boolean} Whether or not the object is equivalent to the text.
 	**/
-	Text.prototype.eq=function eq(x){
+	p.equals=function(x){
 		if(x instanceof Text){
 			x=x.value;
 		}
@@ -406,7 +404,7 @@ var snow=(function(){
 	 * @param {{visit_text:function(!Flake,?)}} visitor - The visitor.
 	 * @param {?=} data - Any data the visitor needs.
 	**/
-	Text.prototype.visit=function visit(visitor,data){
+	p.visit=function(visitor,data){
 		return visitor.visit_text(this,data);
 	}
 	
@@ -416,7 +414,7 @@ var snow=(function(){
 	 *
 	 * @return {string} The text object as a string (assuming tag text).
 	**/
-	Text.prototype.toString=function toString(){
+	p.toString=function(){
 		var x=this.value;
 		if(x.match(/^[^\s{:}\[\]"'`]+$/g)){
 			return x;
@@ -435,15 +433,71 @@ var snow=(function(){
 		
 		var m1=count(x,'"'),m2=count(x,"'"),m3=count(x,'`');
 		if(m1<=m2 && m1<=m3){
-			return '"'+x.replace(/["\\]/g,"$&")+'"';
+			return '"'+x.replace(/"/g,"\\$&")+'"';
 		}
 		else if(m2<=m3){
-			return "'"+x.replace(/['\\]/g,"$&")+"'";
+			return "'"+x.replace(/'/g,"\\$&")+"'";
 		}
 		else{
-			return '`'+x.replace(/[`\\]/g,"$&")+'`';
+			return '`'+x.replace(/`/g,"\\$&")+'`';
 		}
 	}
+	
+	p.toUint32Array=function(){
+		var data=[],value=this.value,vl=value.length;
+		
+		for(var i=0;i<vl;++i){
+			var x=value.charCodeAt(i);
+			if(x>=0xd800 && x<=0xd8ff && i+1<vl){
+				var y=value.charCodeAt(++i);
+				data.push(((x-0xd800)<<10)|(y-0xdc00)+0x010000);
+			}
+			else{
+				data.push(x);
+			}
+		}
+		
+		return new Uint32Array(data);
+	}
+	
+	p.get=function(at){
+		var value=this.value,vl=value.length;
+		
+		for(var i=0;i<vl;++i,--at){
+			if(at==0){
+				if(x>=0xd800 && x<=0xd8ff && i+1<vl){
+					var y=value.charCodeAt(++i);
+					return ((x-0xd800)<<10)|(y-0xdc00)+0x010000;
+				}
+				return x;
+			}
+			
+			var x=value.charCodeAt(i);
+			if(x>=0xd800 && x<=0xd8ff){
+				++i;
+			}
+		}
+		
+		//return undefined
+	}
+	
+	Object.defineProperty(p,"length",{
+		get:function(){
+			var value=this.value,vl=value.length;
+			if(!/[\ud800-\udbff][\udc00-\udfff]/g.test(value)){
+				return vl;
+			}
+			
+			for(var i=0,n=0;i<vl;++i,++n){
+				var x=value.charCodeAt(i);
+				if(x>=0xd800 && x<=0xdbff){
+					++i;
+				}
+			}
+			
+			return n;
+		}
+	});
 	
 	/**
 	 * A Snow section object, for storing text and tags together as markups.
@@ -455,12 +509,12 @@ var snow=(function(){
 	 *
 	 * @param {Array.<Text|Tag>} x - The initial value of the section.
 	**/
-	function Section(x,l,c,p){
+	function Section(x,l,c){
 		if(!(this instanceof Section)){
 			return new Section(x);
 		}
 		
-		Flake.call(this,l,c,p);
+		Flake.call(this,l,c);
 		
 		/**
 		 * The data stored by the section.
@@ -469,8 +523,8 @@ var snow=(function(){
 		**/
 		this.value=x;
 	}
-	Section.prototype=Object.create(Flake.prototype);
-	Section.prototype.constructor=Section;
+	p=Section.prototype=Object.create(Flake.prototype);
+	p.constructor=Section;
 	
 	/**
 	 * @export
@@ -478,7 +532,7 @@ var snow=(function(){
 	 * @param {number} x - The index to get.
 	 * @return {Text|Tag|undefined} The Snow object at the index.
 	**/
-	Section.prototype.get=function get(x){
+	p.get=function(x){
 		return this.value[x];
 	}
 	
@@ -488,7 +542,7 @@ var snow=(function(){
 	 * @param {number} x - The index to set.
 	 * @param {Text|Tag} v - The new value.
 	**/
-	Section.prototype.set=function set(x,v){
+	p.set=function(x,v){
 		if(v instanceof Text || v instanceof Tag){
 			this.value[x]=v;
 		}
@@ -501,7 +555,7 @@ var snow=(function(){
 	 * @param {*} x - The object to compare to the section.
 	 * @return {boolean} Whether or not the objects were equivalent.
 	**/
-	Section.prototype.eq=function eq(x){
+	p.equals=function(x){
 		if(x instanceof Section){
 			x=x.value;
 		}
@@ -511,7 +565,7 @@ var snow=(function(){
 				return false;
 			}
 			while(yl--){
-				if(!x.eq(y)){
+				if(!x.equals(y)){
 					return false;
 				}
 			}
@@ -531,7 +585,7 @@ var snow=(function(){
 	 * @param {{visit_section:function(!Flake,?)}} visitor - The visitor.
 	 * @param {?=} data - Any data required by the visitor.
 	**/
-	Section.prototype.visit=function visit(visitor,data){
+	p.visit=function(visitor,data){
 		return visitor.visit_section(this,data);
 	}
 	
@@ -541,7 +595,7 @@ var snow=(function(){
 	 *
 	 * @return {string} The section as a string.
 	**/
-	Section.prototype.toString=function toString(){
+	p.toString=function(){
 		return '['+this.value.join("")+']';
 	}
 	
@@ -555,15 +609,15 @@ var snow=(function(){
 	 *
 	 * @param {Array.<Text|Tag>} The initial value of the document.
 	**/
-	function Document(x,l,c,p){
+	function Document(x,l,c){
 		if(!(this instanceof Document)){
 			return new Document(x);
 		}
 		
-		Section.call(this,x,l,c,p);
+		Section.call(this,x,l,c);
 	}
-	Document.prototype=Object.create(Section.prototype);
-	Document.prototype.constructor=Document;
+	p=Document.prototype=Object.create(p);
+	p.constructor=Document;
 	
 	/**
 	 * Use the visitor pattern to iterate over the document.
@@ -574,7 +628,7 @@ var snow=(function(){
 	 * @param {{visit_doc:function(!Flake,?)}} visitor - The visitor.
 	 * @param {?=} data - Any data the visitor needs.
 	**/
-	Document.prototype.visit=function visit(visitor,data){
+	p.visit=function(visitor,data){
 		return visitor.visit_doc(this,data);
 	}
 	
@@ -584,7 +638,7 @@ var snow=(function(){
 	 *
 	 * @return {string} The document as a string.
 	**/
-	Document.prototype.toString=function toString(){
+	p.toString=function(){
 		return this.value.join("");
 	}
 	
@@ -614,7 +668,7 @@ var snow=(function(){
 		function TagBuilder(keys,vals,pos,l,c,p,extra){
 			function nhas_attr(keys,attr,kl){
 				while(kl--){
-					if(attr.eq(keys[kl])){
+					if(attr.equals(keys[kl])){
 						return false;
 					}
 				}
@@ -640,6 +694,23 @@ var snow=(function(){
 	}
 	
 	/**
+	 * Array of error messages for conversion from error code.
+	 * @const
+	 * @type {Array.<string>}
+	**/
+	var errmsg=[
+		"Colons are disallowed in unquoted text.",//COLON
+		"Duplicate named attribute names.",//DUPLICATE
+		"Forgot to assign a value to the named attribute.",//NO_VALUE
+		"Unclosed tag.",//UNCLOSED_TAG
+		"Expected the end of a section.",//UNCLOSED_SECTION
+		"Unexpected close bracket ]. Did you forget to close a tag?",//MIXED
+		'Missing terminating " character.',//UNCLOSED_DQ
+		"Missing terminating ' character.",//UNCLOSED_SQ
+		'Missing terminating ` character.'//UNCLOSED_BQ
+	];
+	
+	/**
 	 * An error used to indicate an issue with parsing. Preserves the line
 	 *  and column most relevant to the issue.
 	 *
@@ -657,14 +728,20 @@ var snow=(function(){
 			return new ParseError(msg,line,col);
 		}
 		
-		var err=Error.call(this,msg+" (Ln: "+line+" Col: "+col+")");
-		var stack=err.stack;
+		if(typeof msg=="number"){
+			this.code=msg;
+			msg=errmsg[msg];
+		}
+		else{
+			this.code=0;
+		}
 		
-		Object.defineProperty(this,"stack",{
-			get:function(){
-				return stack;
-			}
-		});
+		var err=this.base=Error.call(this,msg+(
+			typeof line!="undefined" && typeof col!="undefined"?
+				" (Ln: "+line+" Col: "+col+")":""
+			)
+		);
+		
 		/**
 		 * The error message.
 		 *
@@ -684,25 +761,58 @@ var snow=(function(){
 		**/
 		this.col=col;
 	}
-	ParseError.prototype=Object.create(Error.prototype);
-	ParseError.prototype.constructor=ParseError;
-	/** @const **/ ParseError.prototype.name="ParseError";
+	p=ParseError.prototype=Object.create(Error.prototype);
+	p.constructor=ParseError;
+	/** @const **/ p.name="ParseError";
+	Object.defineProperty(p,"stack",{
+		get:function(x){
+			var stack=this.base.stack;
+			if(typeof stack!="undefined"){
+				return stack;
+			}
+			
+			return "Stack trace not supported by this environment";
+		}
+	});
+	
+	/** @const **/ var COLON=ParseError.COLON=1,
+	/** @const **/ DUPLICATE=ParseError.DUPLICATE=2,
+	/** @const **/ NO_VALUE=ParseError.NO_VALUE=3,
+	/** @const **/ UNCLOSED_TAG=ParseError.UNCLOSED_TAG=4,
+	/** @const **/ UNCLOSED_SECTION=ParseError.UNCLOSED_SECTION=5,
+	/** @const **/ MIXED=ParseError.MIXED=6,
+	/** @const **/ UNCLOSED_DQ=ParseError.UNCLOSED_DQ=7,
+	/** @const **/ UNCLOSED_SQ=ParseError.UNCLOSED_SQ=8,
+	/** @const **/ UNCLOSED_BQ=ParseError.UNCLOSED_BQ=9;
 	
 	/**
-	 * Regex for newlines as defined by Unicode.
-	 *
+	 * Shared regexes.
 	 * @const
 	 * @type {RegExp}
 	**/
-	var NEWLINE=/\r\n|[\r\n\x85\v\f\u2028\u2029]/gm,
+	var NEWLINE=/\r\n|[\r\n\x85\v\f\u2028\u2029]/m,
 		SPACE=/\s+/gm,
+		
 		QUOTED_TEXT=
-			/"((?:[^\\"]|\\.)*)"|'((?:[^\\']|\\.)*)'|`((?:[^\\`]|\\.)*)`/gm,
-		UNQUOTED_TEXT=/(?:[^\s{:}\[\]"'`\\]|\\.)+/gm,
-		DOC_REPL=new RegExp("("+NEWLINE.source+")|((?:[^\\{]|\\.)*)","gm"),
-		SEC_REPL=new RegExp("("+NEWLINE.source+")|((?:[^\\{\]]|\\.)*)","gm"),
-		DOC_TEXT=/(?:[^\\{]|\\.)*/gm,
-		SEC_TEXT=/(?:[^\\{\]]|\\.)*/gm;
+		/"((?:[^\\"]|\\[^])*)"|'((?:[^\\']|\\[^])*)'|`((?:[^\\`]|\\[^])*)`/gm,
+		UNQUOTED_TEXT=/(?:[^\s{:}\[\]"'`\\]|\\[^])+/gm,
+		
+		DOC_TEXT=/(?:[^\\{]|\\[^]|\\$)*/gm,
+		SEC_TEXT=/(?:[^\\{\]]|\\[^])*/gm,
+		
+		DOC_REPL=new RegExp("\\\\([\\\\{])|("+NEWLINE.source+")","gm"),
+		SEC_REPL=new RegExp("\\\\([\\\\{\\]])|("+NEWLINE.source+")","gm"),
+		DQ_REPL=new RegExp('\\\\([\\\\"])|('+NEWLINE.source+')',"gm"),
+		SQ_REPL=new RegExp("\\\\([\\\\'])|("+NEWLINE.source+")","gm"),
+		BQ_REPL=new RegExp("\\\\([\\\\`])|("+NEWLINE.source+')',"gm"),
+		UNQ_REPL=new RegExp(
+			"\\\\([\\s{:}\\[\\]\"'`\\\\])|("+NEWLINE.source+')',"gm"
+		);
+	
+	//Used for replacements of newline -> \n and \\special -> special
+	function normalize($0,$1,$2){
+		return $2 || NEWLINE.test($1)?"\n":$1;
+	}
 	
 	/**
 	 * Try to match the regex if possible, else return null
@@ -749,7 +859,7 @@ var snow=(function(){
 		
 		var i=keys.length;
 		while(i--){
-			if(x.eq(keys[i])){
+			if(x.equals(keys[i])){
 				return i;
 			}
 		}
@@ -783,7 +893,7 @@ var snow=(function(){
 				++ps.pos;
 				++ps.col;
 				
-				return ps.build(keys,vals,pos,line,col,p,extra);
+				return ps.build(keys,vals,pos,line,col,extra);
 			}
 			
 			var key=parse_value(text,ps,extra);
@@ -805,10 +915,7 @@ var snow=(function(){
 					vals.push(val);
 				}
 				else{
-					throw new ParseError(
-						"Duplicate named attribute names",
-						ps.line,ps.col
-					);
+					throw new ParseError(DUPLICATE,ps.line,ps.col);
 				}
 			}
 			else{
@@ -817,7 +924,7 @@ var snow=(function(){
 			}
 		}
 		
-		throw new ParseError("Unclosed tag",line,col);
+		throw new ParseError(UNCLOSED_TAG,line,col);
 	}
 	
 	/**
@@ -846,12 +953,7 @@ var snow=(function(){
 			var res=maybe(text,ps,SEC_TEXT);
 			if(res && res[0]){
 				elems.push(
-					new Text(res[0].replace(SEC_REPL,function(m,$1,$2){
-						if($1){
-							return "\n";
-						}
-						return $2;
-					}))
+					new Text(res[0].replace(SEC_REPL,normalize),ps.col,ps.line)
 				)
 				tx=true;
 			}
@@ -870,14 +972,12 @@ var snow=(function(){
 		}while(ps.pos<tl && (tx || tg));
 		
 		if(text[ps.pos]!="]"){
-			throw new ParseError(
-				"Expected the end of a section.",line,col
-			);
+			throw new ParseError(UNCLOSED_SECTION,line,col);
 		}
 		++ps.pos;
 		++ps.col;
 		
-		return new Section(elems,line,col,pos);
+		return new Section(elems,line,col);
 	}
 	
 	/**
@@ -895,25 +995,30 @@ var snow=(function(){
 		//Quoted text
 		if(v){
 			if(v[1]){
-				var text=v[1],qr=/\\([\\"])/g;
+				var text=v[1],qr=DQ_REPL;
 			}
 			else if(v[2]){
-				var text=v[2],qr=/\\([\\'])/g;
+				var text=v[2],qr=SQ_REPL;
 			}
 			//v[3]
 			else{
-				var text=v[3],qr=/\\([\\`])/g;
+				var text=v[3],qr=BQ_REPL;
 			}
 			
-			return new Text(text.replace(qr,"$1"),line,col,pos);
+			return new Text(text.replace(qr,normalize),line,col);
 		}
 		
 		//Unquoted text
 		if(v=maybe(text,ps,UNQUOTED_TEXT)){
-			return new Text(
-				v[0].replace(/\\([\s{:}\[\]"'`\\])/g,"$1"),
-				line,col,pos
-			);
+			if(/[\x85\v\f\u2028\u2029]/gm.test(v[0])){
+				console.log(
+					JSON.stringify(v[0])
+				);
+				console.log(
+					JSON.stringify(v[0].replace(UNQ_REPL,normalize))
+				);
+			}
+			return new Text(v[0].replace(UNQ_REPL,normalize),line,col);
 		}
 		
 		if(v=parse_tag(text,ps,extra)){
@@ -935,42 +1040,30 @@ var snow=(function(){
 		
 		//check for EOF
 		if(ps.pos>=text.length){
-			throw new ParseError(
-				"Reached end of string/file while parsing a tag.",
-				ps.line,ps.col
-			);
+			throw new ParseError(UNCLOSED_TAG,ps.line,ps.col);
 		}
 		
 		var c=text[ps.pos];
-		
-		if('"\'`'.indexOf(c)>=0){
-			throw new ParseError(
-				"Missing terminating "+c+" character",ps.line,ps.col
-			);
+		switch(c){
+			case '"':
+				throw new ParseError(UNCLOSED_DQ,ps.line,ps.col);
+			case "'":
+				throw new ParseError(UNCLOSED_SQ,ps.line,ps.col);
+			case '`':
+				throw new ParseError(UNCLOSED_BQ,ps.line,ps.col);
+			case ']':
+				throw new ParseError(MIXED,ps.line,ps.col-1);
+			case "}":
+				throw new ParseError(
+					NO_VALUE,ps.colonline,ps.coloncol
+				);
+			case ":":
+				throw new ParseError(COLON,ps.line,ps.col);
 		}
 		
-		if(c==']'){
-			throw new ParseError(
-				"Unexpected close bracket ]. Did you forget to close a tag?",
-				ps.line,ps.col-1
-			);
-		}
+		//Parser logic errors
 		
-		if(c=='}'){
-			//Need to calculate the line and col of the colon
-			throw new ParseError(
-				"Forgot to assign a value to the named attribute.",
-				ps.colonline,ps.coloncol
-			);
-		}
-		
-		if(c==':'){
-			throw new ParseError(
-				"Colons are disallowed in unquoted text.",ps.line,ps.col
-			);
-		}
-		
-		if(/\s+/gm.test(c)){
+		if(SPACE.test(c)){
 			throw new ParseError(
 				"Expected a value, found whitespace. "+
 				"There's a problem with the API's parser code.",
@@ -980,10 +1073,11 @@ var snow=(function(){
 		
 		//reserved for cosmic ray errors
 		throw new ParseError(
-			'Something went horribly wrong. Expected value, got "'+(
+			'Something went horribly wrong. Expected value, got '+
+			JSON.stringify(
 				text.slice(ps.pos,ps.pos+8)+
 				(ps.pos+8>=text.length)?"":"..."
-			)+'"',ps.line,ps.col
+			),ps.line,ps.col
 		);
 	}
 	
@@ -994,7 +1088,7 @@ var snow=(function(){
 	 * @struct
 	 * @constructor
 	 *
-	 * @param {(object|{get:function(Array.<Flake>,Array.<Flake>,Array.<Flake>,?:!Tag})=}
+	 * @param {(object|function(Array.<Flake>,Array.<Flake>,Array.<Flake>,number,number,number,?):Tag)=} ts - The tagset to use with the parser.
 	**/
 	function Parser(ts){
 		if(!(this instanceof Parser)){
@@ -1003,25 +1097,25 @@ var snow=(function(){
 		
 		//Parsing
 		if(typeof ts=="object"){
-			this.build=function static_build(keys,vals,pos){
-				var name=pos[0]
+			this.build=function(keys,vals,pos,l,c,p,extra){
+				var name=pos[0];
 				//x has to be a string for it to match anything in ts.
-				if(!(name instanceof Text)){
-					return;
+				if(name instanceof Text && name.value in ts){
+					return ts[name.value](keys,vals,pos,l,c,p,extra);
 				}
-				return ts[name.value];
+				
+				return new Tag(keys,vals,pos,l,c,p);
 			}
 		}
 		else if(typeof ts=="function"){
 			this.build=ts;
 		}
 		else{
-			this.build=function generic_build(keys,vals,pos){
-				return new Tag(keys,vals,pos);
-			}
+			this.build=Tag;
 		}
 	}
-	Parser.prototype.constructor=Parser;
+	p=Parser.prototype;
+	p.constructor=Parser;
 	
 	/**
 	 * Parse the given Snow document.
@@ -1033,16 +1127,17 @@ var snow=(function(){
 	 * @param {string} s - The document text.
 	 * @param {?} extra - Any extra data for parsing hooks.
 	 *
-	 * @return {!Document}
+	 * @return {Document}
 	**/
-	Parser.prototype.parse=function parse(text,extra){
+	p.parse=function(text,extra){
 		var pos=(text.length>0 && text[0]=="\ufeff")?1:0;
 		text=text.toString();
 		var ps={
 			pos:pos,
 			line:1,
 			col:0,
-			lastrel:0,
+			colonline:1,
+			coloncol:0,
 			build:this.build
 		};
 		
@@ -1054,12 +1149,9 @@ var snow=(function(){
 			var res=maybe(text,ps,DOC_TEXT);
 			if(res && res[0]){
 				elems.push(
-					new Text(res[0].replace(DOC_REPL,function(m,$1,$2){
-						if($1){
-							return "\n";
-						}
-						return $2;
-					}))
+					new Text(
+						res[0].replace(DOC_REPL,normalize),ps.line,ps.col
+					)
 				);
 				tx=true;
 			}
@@ -1081,17 +1173,355 @@ var snow=(function(){
 	}
 	
 	/**
+	 * Main function for making the async parser possible.
+	 *
+	 * @const
+	 * @type {function(function())}
+	**/
+	var nextTick=
+		typeof process!="undefined" && typeof process.nextTick=="function"?
+			process.nextTick:function(call){
+				setTimeout(call,0);
+			}
+	
+	/**
+	 * Parse the given Snow document asynchronously.
+	 *
+	 * Because of the highly recursive nature of Snow document parsing,
+	 *  this is accomplished by smashing all the parsing functions into a
+	 *  single function using a pseudo-goto structure. At the end of the
+	 *  processing per loop, either process.nextTick(...) or setTimeout(...,0)
+	 *  is called to yield processing to the rest of the program.
+	 *
+	 * When an error occurs or the document is fully parsed, the provided
+	 *  error-first callback function is called.
+	 *
+	 * @throws {TypeError}
+	 *
+	 * @export
+	 *
+	 * @param {string} s - The document text.
+	 * @param {function(!ParseError,!Document)} ret - The callback to call
+	 *  once parsing finishes.
+	 * @param {?} extra - Any extra data for parsing hooks.
+	 *
+	 * @return {Document}
+	**/
+	p.parseAsync=function(text,ret,extra){
+		/**
+		 * Pseudo-labels
+		 *
+		 * @const
+		 * @type {number}
+		**/
+		var $DOC_TEXT=1,
+			$TAG=2,$TAG_COLON=3,$TAG_KEY=4,
+			$VALUE_TEXT=5,$VALUE_TAG=6,$VALUE_ERR=7,
+			$SEC_START=8,$SEC_BODY=9;
+		
+		function innerParseAsync(next,text,ps,ret,extra){
+			//Avoid redefining this all over the place
+			var m;
+			
+			switch(next){
+				case $DOC_TEXT:
+					if(val){
+						ps.doc.push(ps.val);
+					}
+					else{
+						if(ps.pos>=text.length){
+							ret(null,new Document(ps.doc,1,0,ps.bom));
+							return;
+						}
+					}
+					
+					if(m=maybe(text,ps,DOC_TEXT)){
+						ps.doc.push(new Text(
+							m[0].replace(DOC_REPL,normalize),
+							ps.line,ps.col
+						));
+					}
+					ps.callstack.push($DOC_TEXT);
+					//next=$TAG;break;
+				
+				case $TAG:
+					ps.val=null;
+					if(text[ps.pos]!="{"){
+						//"return" null
+						next=ps.callstack.pop();
+						break;
+					}
+					var toptag=ps.toptag={
+						keys:[],vals:[],pos:[],
+						line:ps.line,col:ps.col++,p:ps.pos++
+					}
+					ps.tagstack.push(toptag);
+					/*
+					Either TAG or TAG_COLON can fall through to 
+					 TAG_KEY, but TAG_COLON can be "called" more than
+					 once per tag parsing circuit, and thus can be
+					 potentially more efficient. TAG is only more
+					 efficient for tags like {tag}
+					*/
+					next=$TAG_KEY;
+					break;
+				
+				case $TAG_COLON:
+					maybe(text,ps,SPACE);
+					if(text[ps.pos]==":"){
+						ps.toptag.keys.push(ps.val);
+						++ps.pos;
+						++ps.col;
+						maybe(text,SPACE,ps);
+						callstack.push($TAG_KEY);
+						next=$VALUE_TEXT;
+						break;
+					}
+					ps.toptag.pos.push(ps.val);
+					ps.val=null;
+					//next=$TAG_KEY;break;
+				
+				case $TAG_KEY:
+					if(ps.val){
+						ps.toptag.vals.push(ps.val);
+					}
+					maybe(text,ps,SPACE);
+					
+					//No need to check for pos<=tl because VALUE_* will catch
+					// any in-tag EOF error
+					if(text[ps.pos]=="}"){
+						++ps.pos;
+						++ps.col;
+						var tag=ps.tagstack.pop();
+						ps.toptag=ps.tagstack[ps.tagstack.length-1];
+						ps.val=ps.build(
+							tag.keys,tag.vals,tag.pos,
+							tag.line,tag.col,tag.p,
+							extra
+						);
+						next=ps.callstack.pop();
+						break;
+					}
+					//Once the value is determined, goto TAG_COLON
+					ps.callstack.push($TAG_COLON);
+					//next=$VALUE_TEXT;break;
+				
+				case $VALUE_TEXT:
+					if(m=maybe(text,ps,QUOTED_TEXT)){
+						var tr,qr;
+						if(m[1]){
+							tr=m[1];
+							qr=DQ_REPL;
+						}
+						else if(m[2]){
+							tr=m[2];
+							qr=SQ_REPL;
+						}
+						else if(m[3]){
+							tr=m[3];
+							qr=BQ_REPL;
+						}
+						
+						ps.val=new Text(
+							tr.replace(qr,normalize),
+							ps.line,ps.col
+						);
+					}
+					else if(m=maybe(UNQUOTED_TEXT)){
+						ps.val=new Text(
+							m[0].replace(UNQ_REPL,normalize),
+							ps.line,ps.col
+						);
+					}
+					else{
+						ps.callstack.push($VALUE_TAG);
+						next=$TAG;
+						break;
+					}
+					
+					//Successful, return to next block
+					next=ps.callstack.pop();
+					break;
+				
+				case $VALUE_TAG:
+					if(ps.val){
+						//Successful, return to next block
+						next=ps.callstack.pop();
+						break;
+					}
+					//next=$SEC_START;break;
+				
+				case $SEC_START:
+					//Sections are the last checked value - if it's not there,
+					// it MUST be an error
+					if(text[ps.pos]!='['){
+						/*
+						Snow errors are very predictable, so check for common
+						mistakes. By this point, we know the next character is
+						one of the start of quoted text, ], }, EOF, or whitespace.
+						Whitespace is an error in the parsing logic, but is
+						predictable. If it's not any of these, it's completely
+						unknown what's wrong.
+						*/
+						
+						//check for EOF
+						if(ps.pos>=text.length){
+							ret(new ParseError(
+								UNCLOSED_TAG,
+								ps.toptag.line,ps.toptag.col
+							),null);
+							return;
+						}
+						
+						var c=text[ps.pos];
+						
+						switch(c){
+							case '"':
+								ret(new ParseError(
+									UNCLOSED_DQ,
+									ps.line,ps.col
+								),null);
+								return;
+							case "'":
+								ret(new ParseError(
+									UNCLOSED_SQ,
+									ps.line,ps.col
+								),null);
+								return;
+							case '`':
+								ret(new ParseError(
+									UNCLOSED_BQ,
+									ps.line,ps.col
+								),null);
+								return;
+							case ']':
+								var p=ps.secstack.pop();
+								ret(new ParseError(
+									MIXED,
+									p.line,p.col-1
+								),null);
+								return;
+							case "}":
+								ret(new ParseError(
+									NO_VALUE,
+									ps.coloncol,ps.colonline
+								),null);
+								return;
+							case ":":
+								ret(new ParseError(
+									COLON,
+									ps.line,ps.col
+								),null);
+								return;
+						}
+						
+						if(SPACE.test(c)){
+							ret(new ParseError(
+								"Expected a value, found whitespace. "+
+								"There's a problem with the API's  parser code.",
+								ps.line,ps.col
+							),null);
+							return;
+						}
+						
+						//reserved for cosmic ray errors
+						ret(new ParseError(
+							'Something went horribly wrong. '+
+							'Expected value, got "'+(
+								text.slice(ps.pos,ps.pos+8)+
+								(ps.pos+8>=text.length)?"":"..."
+							)+'"',ps.line,ps.col
+						),null);
+						return;
+					}
+					//next=$SEC_BODY;break;
+				
+				case $SEC_BODY:
+					var ss=ps.secstack[ps.secstack.length-1];
+					if(ps.val!==null){
+						ss.push(ps.val);
+					}
+					
+					if(m=maybe(text,ps,DOC_TEXT)){
+						ss.push(new Text(
+							m[0].replace(SEC_REPL,normalize),
+							ps.line,ps.col
+						));
+					}
+					
+					if(ps.pos>=tl){
+						ret(new ParseError(
+							UNCLOSED_SECTION,ps.line,ps.col
+						),null);
+						return;
+					}
+					
+					if(text[ps.pos]==']'){
+						++ps.pos;
+						++ps.col;
+						val=new Section(ss,ps.line,ps.col,ps.pos);
+						//sections must come from the value circuit
+						next=$VALUE_SEC;
+						break;
+					}
+					ps.callstack.push($SEC_BODY);
+					next=$TAG;
+					break;
+			}
+			
+			nextTick(function(){
+				innerParseAsync(next,text,ps,ret,extra);
+			});
+		}
+		
+		if(typeof ret!="function"){
+			throw new TypeError(
+				"snow.parseAsync must be given a callback."
+			);
+		}
+		
+		var bom=(text.length>0 && text[0]=="\ufeff")|0;
+		nextTick(function(){
+			innerParseAsync($DOC_TEXT,text,{
+				bom:bom,
+				pos:bom,
+				line:1,
+				col:bom,
+				colonline:1,
+				coloncol:0,
+				doc:[],tagstack:[],secstack:[],toptag:null,
+				val:null,callstack:[]
+			},ret,extra);
+		});
+	}
+	
+	/**
 	 * Shorthand for parsing a Snow document with the given tagset.
 	 *
 	 * @param {string} s - The Snow document.
-	 * @param {(object|{get:function(Array.<Flake>,Array.<Flake>,Array.<Flake>,?:!Tag})=} ts - The tagset.
+	 * @param {(object|function(Array.<Flake>,Array.<Flake>,Array.<Flake>,number,number,number,?):Tag)=} ts - The tagset.
 	 * @param {?} extra - Any extra data for use in parsing hooks.
 	 *
-	 * @return {!Document}
+	 * @return {Document}
 	**/
-	
 	function parse(s,ts,extra){
 		return new Parser(ts).parse(s,extra);
+	}
+	
+	/**
+	 * Shorthand for asynchronously parsing a Snow document with the given
+	 *  tagset.
+	 *
+	 * @param {string} s - The snow document.
+	 * @param {function(!ParseError,!Document)} ret - The callback to call
+	 *  on success or error.
+	 * @param {(object|function(Array.<Flake>,Array.<Flake>,Array.<Flake>,number,number,number,?):!Tag)=} ts - The tagset.
+	 * {?} extra - Any extra data for use in parsing hooks.
+	 *
+	 * @return {Document}
+	**/
+	function parseAsync(s,ret,ts,extra){
+		new Parser(ts).parseAsync(s,ret,extra);
 	}
 	
 	/**
@@ -1312,8 +1742,6 @@ var snow=(function(){
 					}
 				}
 				
-				console.log(of);
-				
 				var s="{";
 				for(var i=0;i<ol;++i){
 					if(!(of[i]&RIGHT) && !(of[i+1]&LEFT)){
@@ -1354,6 +1782,7 @@ var snow=(function(){
 		"index":index,
 		"Parser":Parser,
 		"parse":parse,
+		"parseAsync":parseAsync,
 		"stringify":stringify,
 		"minify":minify
 	};

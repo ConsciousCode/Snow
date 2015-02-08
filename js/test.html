@@ -2,121 +2,237 @@
 <html>
 	<head>
 		<title>JS Snow test</title>
+		<style>
+			body{
+				font-family:Courier;
+			}
+			
+			details{
+				display:inline-block;
+			}
+			
+			.pass{
+				color:green;
+			}
+			
+			.fail{
+				color:red;
+			}
+		</style>
 		<script src="snow.js"></script>
+		<script src="../tests/test.json.js"></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
 	</head>
 	<body>
 		<script>
 			var pass=document.createElement("span"),
-				fail=document.createElement("summary");
+				fail=document.createElement("summary"),
+				body=document.body;
 			pass.style.color="green";
 			pass.appendChild(document.createTextNode("pass"));
 			
 			fail.style.color="red";
-			fail.appendChild(document.createTextNode("fail");
+			fail.appendChild(document.createTextNode("fail"));
 			
-			function test(name,file){
-				var div=document.createElement("div");
-				div.appendChild(document.createTextNode(name+": "));
-				document.appendChild(div);
-				
-				var req=new XMLHttpRequest();
-				req.onload=function(){
-					var x=this.responseText.split("~~");
-					try{
-						var doc=snow.parse(x[0]);
-					}
-					catch(e){
-						var d=document.createElement("details"),
-							s=document.createElement("summary"),
-							p=document.createElement("p");
-						
-						s.appendChild(
-							document.createTextNode("Fatal exception")
-						);
-						p.appendChild(document.createTextNode(
-							e.stack.replace(/\n/g,"<br/>")
-						));
-						
-						d.appendChild(s);
-						d.appendChild(p);
-						
-						div.appendChild(d);
-						return;
+			function test(name,doc,test){
+				function snow_compare(a,b){
+					var order=[snow.Text,snow.Tag,snow.Section],
+						x=order.indexOf(a.constructor)-
+							order.indexOf(b.constructor);
+					
+					if(x==0){
+						if(a instanceof snow.Text){
+							var av=a.value,bv=b.value,
+								avl=av.length,bvl=bv.length;
+							for(var i=0;i<avl;++i){
+								if(i>=bvl){
+									return 1;
+								}
+								
+								if(av[i]!=bv[i]){
+									return (
+										av.charCodeAt(i)-bv.charCodeAt(i)
+									)<0?-1:1;
+								}
+							}
+							
+							return i<bvl?-1:0;
+						}
+						else if(a instanceof snow.Tag){
+							var ap=a.pos,bp=b.pos,apl=ap.length,bpl=bp.length;
+							for(var i=0;i<apl;++i){
+								if(i>=bpl){
+									return 1;
+								}
+								
+								var v=snow_compare(av[i],bv[i]);
+								if(v!=0){
+									return v;
+								}
+							}
+							
+							if(i<bpl){
+								return -1;
+							}
+							
+							var an=[];
+							for(var i=0,kl=k.length;i<kl;++i){
+								an.push({key:k[i],val:v[i]});
+							}
+							
+							an.sort(function(a,b){
+								return snow_compare(a.key,b.key);
+							});
+							
+							var bn=[];
+							for(var i=0,kl=k.length;i<kl;++i){
+								bn.push({key:k[i],val:v[i]});
+							}
+							
+							bn.sort(function(a,b){
+								return snow_compare(a.key,b.key);
+							});
+							
+							var anl=an.length,bnl=bn.length;
+							
+							for(var i=0;i<nl;++i){
+								if(i>=bnl){
+									return 1;
+								}
+								
+								var v=snow_compare(an[i].key,bn[i].key);
+								if(v!=0){
+									return v;
+								}
+							}
+							
+							return i<bnl?-1:0;
+						}
+						else{
+							var av=a.value,bv=b.value,
+								avl=av.length,bvl=bv.length;
+							for(var i=0;i<avl;++i){
+								if(i>=bvl){
+									return -1;
+								}
+								
+								var v=snow_compare(av[i],bv[i]);
+								if(v!=0){
+									return v;
+								}
+							}
+							
+							return 0;
+						}
 					}
 					
-					var t=doc.visit({
+					return x<0?-1:1;
+				}
+				
+				try{
+					var t=snow.parse(doc).visit({
 						visit_doc:function(doc){
-							return "("+doc.value.length+doc.map(function(v){
+							var v=doc.value;
+							return "("+v.length+v.map(function(v){
 								return v.visit(this);
 							},this).join("")+")";
 						},
 						visit_tag:function(tag){
-							var p=tag.pos,k=tag.keys,v=tag.vals;
-							return "{"+p.length+p.map(function(x){
-								return x.visit(this);
-							},this).join("")+k.length+k.map(function(x,i){
-								return x.visit(this)+v[i].visit(this);
+							var p=tag.pos,k=tag.keys,v=tag.vals,n=[];
+							for(var i=0,kl=k.length;i<kl;++i){
+								n.push({key:k[i],val:v[i]});
+							}
+							n.sort(function(a,b){
+								return snow_compare(a.key,b.key);
+							})
+							
+							return "{"+p.length+p.map(function(v){
+								return v.visit(this);
+							},this).join("")+k.length+n.map(function(v){
+								return v.key.visit(this)+v.val.visit(this);
 							},this).join("")+"}";
 						},
 						visit_section:function(sec){
-							return "["+sec.value.length+sec.map(function(v){
+							var v=sec.value;
+							return "["+v.length+v.map(function(v){
 								return v.visit(this);
 							},this).join("")+"]";
 						},
 						visit_text:function(text){
 							var v=text.value;
-							return '"'+v.length+v.replace(/[^ -~]/,function(m){
-								if(m[0]=='\0'){
-									return "~.";
+							return '"'+text.length+":"+v.replace(
+			/([\0-\x1f])|([\x7e-\ud7ff])|([\ud800-\udbff][\udc00-\udfff])/g,
+								function(m,$1,$2,$3){
+									if(m[0]=='\0'){
+										return "~.";
+									}
+									
+									var x=$1 || $2;
+									if(x){
+										return "~"+x.charCodeAt(0).
+											toString(16).toUpperCase()+".";
+									}
+									
+									return "~"+(
+										(($3.charCodeAt(0)-0xd800)<<10)|
+										($3.charCodeAt(1)-0xdc00)+
+										0x010000
+									).toString(16).toUpperCase()+".";
 								}
-								return "~"+m[0].charCodeAt(0).
-									toString(16).toUpperCase()+".";
-							})+'"';
+							)+'"';
 						}
 					});
-					
-					if(t==x[1]){
-						div.appendchild(pass);
-					}
-					else{
-						var fail=document.createElement("details"),
-							p=document.createElement("p");
-						
-						p.appendChild(document.createTextNode(
-							"Got "+t+",<br/><br/>expected "+x[1]
-						));
+				}
+				catch(e){
+					var ParseError=snow.ParseError;
+					switch(e.code){
+						case ParseError.COLON:
+							var t="!:";
+							break;
+						case ParseError.DUPLICATE:
+							var t="!::";
+							break;
+						case ParseError.NO_VALUE:
+							var t="!:?";
+							break;
+						case ParseError.UNCLOSED_TAG:
+							var t="!{";
+							break;
+						case ParseError.UNCLOSED_SECTION:
+							var t="![";
+							break;
+						case ParseError.MIXED:
+							var t="!{]";
+							break;
+						case ParseError.UNCLOSED_DQ:
+							var t='!"';
+							break;
+						case ParseError.UNCLOSED_SQ:
+							var t="!'";
+							break;
+						case ParseError.UNCLOSED_BQ:
+							var t="!`";
+							break;
+						default:
+							var t="!!";
+							break;
 					}
 				}
 				
-				req.open("get","https://raw.githubusercontent.com/"+
-					"ConsciousCode/Snow/master/tests/"+file+".test",
-					true
-				);
-				req.send();
+				$("<div/>").append(name+": ",t==test?
+					$("<span/>").addClass("pass").text("\u2713"):
+					$("<details/>").append(
+						$("<summary/>").addClass("fail").text("\u2717"),
+						$("<p/>").append("Have "+t),
+						$("<p/>").append("Want "+test)
+					)
+				).appendTo("body");
 			}
 			
-			//Functionality
-			test("Basic","basic");
-			test("Non-textual name","nontextual-name");
-			test("Escapes","escapes");
-			test("Control characters","control-chars");
-			test("Unicode","unicode");
-			test("Newline","newline");
-			
-			var h3=document.createElement("h3");
-			h3.appendChild(document.createTextNode("Error handling"));
-			document.appendChild(h3);
-			
-			//Errors
-			test("Tag EOF","tag-eof");
-			test("Section EOF","section-eof");
-			test("Double quote EOF","dq-eof");
-			test("Single quote EOF","sq-eof");
-			test("Backtick EOF","bq-eof");
-			test("Unescaped brace","unescaped-brace");
-			test("Unexpected colon","unexpected-colon");
-			test("Valueless attribute","valueless-attr");
-			test("Duplicate attribute","duplicate-attr");
+			for(var name in tests){
+				var x=tests[name];
+				test(name,x.doc,x.test);
+			}
 		</script>
 	</body>
 </html>
