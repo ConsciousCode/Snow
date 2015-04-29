@@ -1,12 +1,14 @@
-package org.snowlang.snow;
+package org.snow;
 
 import java.util.List;
 import java.util.ArrayList;
 
+import java.util.Iterator;
+
 /**
  * A Snow section object.
 **/
-public class Section extends Flake{
+public class Section extends Flake implements Iterable<Flake>{
 	/**
 	 * Sub-values (assumed to be text or tag).
 	**/
@@ -23,15 +25,22 @@ public class Section extends Flake{
 		flakes=L;
 	}
 	
-	public Section(List<Flake> L,int l,int c,int p){
-		super(l,c,p);
+	public Section(List<Flake> L,int l,int c){
+		super(l,c);
 		flakes=L;
 	}
 	
+	@Override
+	public Iterator<Flake> iterator(){
+		return flakes.iterator();
+	}
+	
+	@Override
 	public boolean is_section(){
 		return true;
 	}
 	
+	@Override
 	public String toString(){
 		StringBuilder sb=new StringBuilder("[");
 		
@@ -51,6 +60,7 @@ public class Section extends Flake{
 	
 	//Could make smaller if whitespace could be trimmed, but there's no way
 	// to nicely communicate that.
+	@Override
 	public String minify(Tagset t){
 		StringBuilder sb=new StringBuilder("[");
 		
@@ -68,6 +78,7 @@ public class Section extends Flake{
 		return sb.toString();
 	}
 	
+	@Override
 	public boolean equals(Object o){
 		if(this==o){
 			return true;
@@ -155,5 +166,15 @@ public class Section extends Flake{
 	**/
 	public List<Flake> getFlakes(){
 		return flakes;
+	}
+	
+	@Override
+	public Object visit(SnowVisitor v){
+		return v.visit_section(this);
+	}
+	
+	@Override
+	public int hashCode(){
+		return flakes.hashCode();
 	}
 }

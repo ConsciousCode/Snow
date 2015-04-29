@@ -1,4 +1,4 @@
-package org.snowlang.snow;
+package org.snow;
 
 /**
  * Base class for all Snow objects.
@@ -7,18 +7,16 @@ public abstract class Flake{
 	/**
 	 * The position of the flake in the document (-1 if N/A).
 	**/
-	public int line,col,pos;
+	public int line,col;
 	
 	public Flake(){
 		line=-1;
 		col=-1;
-		pos=-1;
 	}
 	
-	public Flake(int l,int c,int p){
+	public Flake(int l,int c){
 		line=l;
 		col=c;
-		pos=p;
 	}
 	
 	/**
@@ -83,4 +81,9 @@ public abstract class Flake{
 	 * Stringify the flake in the smallest way possible.
 	**/
 	public abstract String minify(Tagset t);
+	
+	/**
+	 * For following the visitor pattern.
+	**/
+	public abstract Object visit(SnowVisitor v);
 }

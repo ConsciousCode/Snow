@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Cirrus</title>
+		<script src="snow.js"></script>
+		<script src="snow.cirrus.js"></script>
+	</head>
+	<body>
+		<textarea id="input"></textarea>
+		<div id="output"></div>
+		<script>
+			var output=document.getElementById("output");
+			document.getElementById("input").
+				addEventListener("change",function(){
+					output.innerHTML=crs2html(this.value);
+				});
+		</script>
+	</body>
+</html>

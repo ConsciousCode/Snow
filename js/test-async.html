@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 	<head>
 		<title>JS Snow test</title>
@@ -22,7 +22,6 @@
 		<script src="snow.js"></script>
 		<script src="../tests/test.json.js"></script>
 		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
-		<script src="snow.xon.js"></script>
 	</head>
 	<body>
 		<script>
@@ -36,8 +35,58 @@
 			fail.appendChild(document.createTextNode("fail"));
 			
 			function test(name,doc,test){
-				try{
-					var t=snow.parse(doc).visit({
+				function result(name,t,test){
+					$("<div/>").append(name+": ",t==test?
+						$("<span/>").addClass("pass").text("\u2713"):
+						$("<details/>").append(
+							$("<summary/>").addClass("fail").text("\u2717"),
+							$("<p/>").append("Have "+t),
+							$("<p/>").append("Want "+test)
+						)
+					).appendTo("body");
+				}
+				
+				snow.parseAsync(doc,function(err,doc){
+					if(err){
+						var ParseError=snow.ParseError;
+						switch(err.code){
+							case ParseError.COLON:
+								var t="!:";
+								break;
+							case ParseError.DUPLICATE:
+								var t="!::";
+								break;
+							case ParseError.NO_VALUE:
+								var t="!:?";
+								break;
+							case ParseError.UNCLOSED_TAG:
+								var t="!{";
+								break;
+							case ParseError.UNCLOSED_SECTION:
+								var t="![";
+								break;
+							case ParseError.MIXED:
+								var t="!{]";
+								break;
+							case ParseError.UNCLOSED_DQ:
+								var t='!"';
+								break;
+							case ParseError.UNCLOSED_SQ:
+								var t="!'";
+								break;
+							case ParseError.UNCLOSED_BQ:
+								var t="!`";
+								break;
+							default:
+								var t="!!";
+								break;
+						}
+						
+						result(name,t,test);
+						return;
+					}
+					
+					var t=doc.visit({
 						visit_doc:function(doc){
 							var v=doc.value;
 							return "("+v.length+v.map(function(v){
@@ -65,67 +114,24 @@
 						visit_text:function(text){
 							var v=text.value;
 							return '"'+text.length+":"+v.replace(
-								/[\ud800-\udbff][\udc00-\udfff]|([^ -}])/g,
-								function(all,bmp){
-									if(bmp){
-										return "~"+bmp.charCodeAt(0)+".";
+		/([\0-\x1f])|([\x7e-\ud7ff])|([\ud800-\udbff][\udc00-\udfff])/g,
+								function($0,$1,$2,$3){
+									var x=$1 || $2;
+									if(x){
+										return "~"+x.charCodeAt(0)+".";
 									}
 									
-									//Merge the surrogate pairs
 									return "~"+(
-										((all.charCodeAt(0)-0xd800)<<10)|
-										(all.charCodeAt(1)-0xdc00)+
+										(($3.charCodeAt(0)-0xd800)<<10)|
+										($3.charCodeAt(1)-0xdc00)+
 										0x010000
 									)+".";
 								}
 							)+'"';
 						}
 					});
-				}
-				catch(e){
-					var ParseError=snow.ParseError;
-					switch(e.code){
-						case ParseError.COLON:
-							var t="!:";
-							break;
-						case ParseError.DUPLICATE:
-							var t="!::";
-							break;
-						case ParseError.NO_VALUE:
-							var t="!:?";
-							break;
-						case ParseError.UNCLOSED_TAG:
-							var t="!{";
-							break;
-						case ParseError.UNCLOSED_SECTION:
-							var t="![";
-							break;
-						case ParseError.MIXED:
-							var t="!{]";
-							break;
-						case ParseError.UNCLOSED_DQ:
-							var t='!"';
-							break;
-						case ParseError.UNCLOSED_SQ:
-							var t="!'";
-							break;
-						case ParseError.UNCLOSED_BQ:
-							var t="!`";
-							break;
-						default:
-							var t="!!";
-							break;
-					}
-				}
-				
-				$("<div/>").append(name+": ",t==test?
-					$("<span/>").addClass("pass").text("\u2713"):
-					$("<details/>").append(
-						$("<summary/>").addClass("fail").text("\u2717"),
-						$("<p/>").append("Have "+t),
-						$("<p/>").append("Want "+test)
-					)
-				).appendTo("body");
+					result(name,t,test);
+				});
 			}
 			
 			for(var name in tests){

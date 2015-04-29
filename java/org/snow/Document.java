@@ -1,4 +1,4 @@
-package org.snowlang.snow;
+package org.snow;
 
 import java.util.List;
 
@@ -14,14 +14,16 @@ public class Document extends Section{
 		super(L);
 	}
 	
-	public Document(List<Flake> L,int l,int c,int p){
-		super(L,l,c,p);
+	public Document(List<Flake> L,int l,int c){
+		super(L,l,c);
 	}
 	
+	@Override
 	public boolean is_document(){
 		return true;
 	}
 	
+	@Override
 	public String toString(){
 		StringBuilder sb=new StringBuilder();
 		
@@ -36,5 +38,10 @@ public class Document extends Section{
 		}
 		
 		return sb.toString();
+	}
+	
+	@Override
+	public Object visit(SnowVisitor v){
+		return v.visit_doc(this);
 	}
 }

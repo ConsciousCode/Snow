@@ -107,7 +107,7 @@ function crs2html(text){
 	var build={
 		doc:function(tag){
 			var head=[
-				'<link rel="stylesheet" href="http://parachan.org/snow/cirrus/cirrus.css"/>'
+				'<link rel="stylesheet" href="http://snow-lang.org/cirrus/cirrus.css"/>'
 			],x;
 			if(x=tag.get("title")){
 				head.push("<title>"+textify(x)+"</title>");
@@ -234,14 +234,12 @@ function crs2html(text){
 	build.row=build.cols;
 	build.col=build.rows;
 	
-	return snow.parse(text,{
-		get:function(keys,vals,pos){
-			var x=pos[0];
-			if(x instanceof snow.Text && x.value in defs){
-				return defs[x.value];
-			}
-			return defs.span;
+	return snow.parse(text,function(keys,vals,pos,l,c){
+		var x=pos[0];
+		if(x instanceof snow.Text && x.value in defs){
+			return new defs[x.value](keys,vals,pos,l,c);
 		}
+		return defs.span(keys,vals,pos,l,c);
 	}).visit({
 		visit_doc:function(doc){
 			var items=doc.value,dl=items.length;

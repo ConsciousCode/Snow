@@ -443,6 +443,12 @@ var snow=(function(){
 		}
 	}
 	
+	/**
+	 * @export
+	 *
+	 * @return {Uint32Array} The content of the object as a UTF-32 typed
+	 *  array.
+	**/
 	p.toUint32Array=function(){
 		var data=[],value=this.value,vl=value.length;
 		
@@ -460,20 +466,25 @@ var snow=(function(){
 		return new Uint32Array(data);
 	}
 	
-	p.get=function(at){
+	/**
+	 * @param {number} at The index of the code point.
+	 *
+	 * @return {number|undefined} The Unicode code point at the given index.
+	**/
+	p.codePointAt=function(at){
 		var value=this.value,vl=value.length;
 		
 		for(var i=0;i<vl;++i,--at){
+			var x=value.charCodeAt(i);
 			if(at==0){
-				if(x>=0xd800 && x<=0xd8ff && i+1<vl){
+				if(x>=0xd800 && x<=0xdbff && i+1<vl){
 					var y=value.charCodeAt(++i);
 					return ((x-0xd800)<<10)|(y-0xdc00)+0x010000;
 				}
 				return x;
 			}
 			
-			var x=value.charCodeAt(i);
-			if(x>=0xd800 && x<=0xd8ff){
+			if(x>=0xd800 && x<=0xdbff){
 				++i;
 			}
 		}
@@ -481,21 +492,42 @@ var snow=(function(){
 		//return undefined
 	}
 	
+	/**
+	 * @param {number} The index of the character to get.
+	 *
+	 * @return {string|undefined} The character/surrogate pair at the given
+	 *  index.
+	**/
+	p.get=function(at){
+		var value=this.value,vl=value.length;
+		
+		for(var i=0;i<vl;++i,--at){
+			var x=value.charCodeAt(i);
+			if(at==0){
+				if(x>=0xd800 && x<=0xdbff && i+1<vl){
+					return value.slice(i,i+2);
+				}
+				return value[i];
+			}
+			
+			if(x>=0xd800 && x<=0xdbff){
+				++i;
+			}
+		}
+		
+		//return undefined
+	}
+	
+	var SURPAIR=/[\ud800-\udbff][\udc00-\udfff]/g;
 	Object.defineProperty(p,"length",{
 		get:function(){
-			var value=this.value,vl=value.length;
-			if(!/[\ud800-\udbff][\udc00-\udfff]/g.test(value)){
-				return vl;
+			var value=this.value,c=0;
+			SURPAIR.lastIndex=0;
+			while(SURPAIR.test(value)){
+				++c;
 			}
 			
-			for(var i=0,n=0;i<vl;++i,++n){
-				var x=value.charCodeAt(i);
-				if(x>=0xd800 && x<=0xdbff){
-					++i;
-				}
-			}
-			
-			return n;
+			return value.length-c;
 		}
 	});
 	
@@ -521,7 +553,7 @@ var snow=(function(){
 		 *
 		 * @type {Array.<Text|Tag>}
 		**/
-		this.value=x;
+		this.value=x||[];
 	}
 	p=Section.prototype=Object.create(Flake.prototype);
 	p.constructor=Section;
@@ -565,7 +597,7 @@ var snow=(function(){
 				return false;
 			}
 			while(yl--){
-				if(!x.equals(y)){
+				if(!y[yl].equals(x[yl])){
 					return false;
 				}
 			}
@@ -643,7 +675,7 @@ var snow=(function(){
 	}
 	
 	/**
-	 * A tag definition.
+	 * A common-use tag definition.
 	 *
 	 * @export
 	 *
@@ -659,13 +691,13 @@ var snow=(function(){
 			if(typeof v=="string"){
 				return new Text(v);
 			}
+			
+			return v;
 		});
-		build=build||function(keys,vals,pos,l,c,p,extra){
-			return new Tag(keys,vals,pos,l,c,p);
-		}
+		build=build||Tag;
 		
 		var al=attrn.length;
-		function TagBuilder(keys,vals,pos,l,c,p,extra){
+		function TagBuilder(keys,vals,pos,l,c,extra){
 			function nhas_attr(keys,attr,kl){
 				while(kl--){
 					if(attr.equals(keys[kl])){
@@ -685,7 +717,7 @@ var snow=(function(){
 				}
 			}
 			
-			return build(keys,vals,pos,l,c,p,extra);
+			return build(keys,vals,pos,l,c,extra);
 		}
 		
 		TagBuilder.attrs=attrn;
@@ -787,10 +819,9 @@ var snow=(function(){
 	
 	/**
 	 * Shared regexes.
-	 * @const
 	 * @type {RegExp}
 	**/
-	var NEWLINE=/\r\n|[\r\n\x85\v\f\u2028\u2029]/m,
+	var NEWLINE=/\r\n?|[\n\x85\v\f\u2028\u2029]/m,
 		SPACE=/\s+/gm,
 		
 		QUOTED_TEXT=
@@ -1010,14 +1041,6 @@ var snow=(function(){
 		
 		//Unquoted text
 		if(v=maybe(text,ps,UNQUOTED_TEXT)){
-			if(/[\x85\v\f\u2028\u2029]/gm.test(v[0])){
-				console.log(
-					JSON.stringify(v[0])
-				);
-				console.log(
-					JSON.stringify(v[0].replace(UNQ_REPL,normalize))
-				);
-			}
 			return new Text(v[0].replace(UNQ_REPL,normalize),line,col);
 		}
 		
@@ -1130,8 +1153,8 @@ var snow=(function(){
 	 * @return {Document}
 	**/
 	p.parse=function(text,extra){
-		var pos=(text.length>0 && text[0]=="\ufeff")?1:0;
 		text=text.toString();
+		var pos=(text.length>0 && text[0]=="\ufeff")?1:0;
 		var ps={
 			pos:pos,
 			line:1,
@@ -1225,7 +1248,7 @@ var snow=(function(){
 			
 			switch(next){
 				case $DOC_TEXT:
-					if(val){
+					if(ps.val){
 						ps.doc.push(ps.val);
 					}
 					else{
@@ -1235,7 +1258,7 @@ var snow=(function(){
 						}
 					}
 					
-					if(m=maybe(text,ps,DOC_TEXT)){
+					if((m=maybe(text,ps,DOC_TEXT)) && m[0]){
 						ps.doc.push(new Text(
 							m[0].replace(DOC_REPL,normalize),
 							ps.line,ps.col
@@ -1251,11 +1274,14 @@ var snow=(function(){
 						next=ps.callstack.pop();
 						break;
 					}
-					var toptag=ps.toptag={
-						keys:[],vals:[],pos:[],
-						line:ps.line,col:ps.col++,p:ps.pos++
-					}
-					ps.tagstack.push(toptag);
+					
+					ps.tagstack.push(
+						ps.toptag={
+							keys:[],vals:[],pos:[],
+							line:ps.line,col:ps.col++,p:ps.pos++
+						}
+					);
+					
 					/*
 					Either TAG or TAG_COLON can fall through to 
 					 TAG_KEY, but TAG_COLON can be "called" more than
@@ -1269,11 +1295,17 @@ var snow=(function(){
 				case $TAG_COLON:
 					maybe(text,ps,SPACE);
 					if(text[ps.pos]==":"){
+						if(index(ps.toptag.keys,ps.val)!==null){
+							ret(new ParseError(
+								DUPLICATE,ps.line,ps.col
+							),null);
+							return;
+						}
 						ps.toptag.keys.push(ps.val);
 						++ps.pos;
 						++ps.col;
-						maybe(text,SPACE,ps);
-						callstack.push($TAG_KEY);
+						maybe(text,ps,SPACE);
+						ps.callstack.push($TAG_KEY);
 						next=$VALUE_TEXT;
 						break;
 					}
@@ -1294,7 +1326,7 @@ var snow=(function(){
 						++ps.col;
 						var tag=ps.tagstack.pop();
 						ps.toptag=ps.tagstack[ps.tagstack.length-1];
-						ps.val=ps.build(
+						ps.val=this.build(
 							tag.keys,tag.vals,tag.pos,
 							tag.line,tag.col,tag.p,
 							extra
@@ -1327,7 +1359,7 @@ var snow=(function(){
 							ps.line,ps.col
 						);
 					}
-					else if(m=maybe(UNQUOTED_TEXT)){
+					else if(m=maybe(text,ps,UNQUOTED_TEXT)){
 						ps.val=new Text(
 							m[0].replace(UNQ_REPL,normalize),
 							ps.line,ps.col
@@ -1415,7 +1447,7 @@ var snow=(function(){
 								return;
 						}
 						
-						if(SPACE.test(c)){
+						if(/\s/m.test(c)){
 							ret(new ParseError(
 								"Expected a value, found whitespace. "+
 								"There's a problem with the API's  parser code.",
@@ -1434,6 +1466,9 @@ var snow=(function(){
 						),null);
 						return;
 					}
+					++ps.pos;
+					++ps.col;
+					ps.secstack.push([]);
 					//next=$SEC_BODY;break;
 				
 				case $SEC_BODY:
@@ -1442,14 +1477,14 @@ var snow=(function(){
 						ss.push(ps.val);
 					}
 					
-					if(m=maybe(text,ps,DOC_TEXT)){
+					if((m=maybe(text,ps,SEC_TEXT)) && m[0]){
 						ss.push(new Text(
 							m[0].replace(SEC_REPL,normalize),
 							ps.line,ps.col
 						));
 					}
 					
-					if(ps.pos>=tl){
+					if(ps.pos>=text.length){
 						ret(new ParseError(
 							UNCLOSED_SECTION,ps.line,ps.col
 						),null);
@@ -1459,9 +1494,9 @@ var snow=(function(){
 					if(text[ps.pos]==']'){
 						++ps.pos;
 						++ps.col;
-						val=new Section(ss,ps.line,ps.col,ps.pos);
+						ps.val=new Section(ss,ps.line,ps.col,ps.pos);
 						//sections must come from the value circuit
-						next=$VALUE_SEC;
+						next=ps.callstack.pop();
 						break;
 					}
 					ps.callstack.push($SEC_BODY);
@@ -1469,8 +1504,9 @@ var snow=(function(){
 					break;
 			}
 			
+			var self=this;
 			nextTick(function(){
-				innerParseAsync(next,text,ps,ret,extra);
+				innerParseAsync.call(self,next,text,ps,ret,extra);
 			});
 		}
 		
@@ -1480,9 +1516,9 @@ var snow=(function(){
 			);
 		}
 		
-		var bom=(text.length>0 && text[0]=="\ufeff")|0;
+		var bom=(text.length>0 && text[0]=="\ufeff")|0,self=this;
 		nextTick(function(){
-			innerParseAsync($DOC_TEXT,text,{
+			innerParseAsync.call(self,$DOC_TEXT,text,{
 				bom:bom,
 				pos:bom,
 				line:1,
@@ -1544,50 +1580,49 @@ var snow=(function(){
 	 * @export
 	 *
 	 * @param {Flake} x - The Snow object to minify.
-	 * @param {(object|{get:function(Array.<Flake>,Array.<Flake>,Array.<Flake>,?:!Tag,mini_section:function})=} tags A tagset (optional).
+	 * @param {(object|{get:function(Array.<Flake>,Array.<Flake>,Array.<Flake>,?:!Tag,mini_section:function})=} ts A tagset (optional).
 	 *
 	 * @return {string} The smallest possible textual representation of the
 	 *  Snow document.
 	**/
-	function minify(x,tags){
+	function minify(x,ts){
 		if(!(x instanceof Flake)){
 			throw new TypeError("Attempted to minify non-Snow object");
 		}
 		
-		if(typeof tags=="undefined"){
-			tags={
-				get:function(){},
-				mini_section:function(x){return x;},
-				mini_tag:function(){}
-			};
-		}
-		else{
-			var ts=tags;
-			tags={
-				get:tags.get||function(){
-					if(x instanceof Text){
-						return ts[x.value];
-					}
-				},
-				mini_section:tags.mini_section||function(x){return x;},
-				mini_tag:tags.mini_tag||function(keys,vals,pos){
-					var tag=this.get(pos[0]);
-					
-					if(tag){
-						var attrs=tag.attrs,al=attrs;
-						for(var i=0;i<al;++i){
-							var k=index(keys,attrs[i]);
-							if(k!==null){
-								pos.splice(i+1,0,vals[k]);
-								//Remove them from the values
-								keys.splice(k,1);
-								vals.splice(k,1);
-							}
-						}
-					}
+		function d_mini_sec(sec,ts){
+			return "["+sec.value.map(function(v){
+				if(v instanceof snow.Text){
+					return v;
 				}
-			};
+				
+				return inner_mini(v,ts);
+			}).join("")+"]";
 		}
+		
+		function d_mini_doc(doc,ts){
+			return doc.value.map(function(v){
+				if(v instanceof snow.Text){
+					return v;
+				}
+				
+				return inner_mini(v,ts);
+			}).join("");
+		}
+		
+		function d_mini_tag(tag){
+			return tag;
+		}
+		
+		if(typeof ts=="undefined"){
+			ts={}
+		}
+		
+		ts={
+			mini_doc:ts.mini_doc||d_mini_doc,
+			mini_section:ts.mini_section||d_mini_sec,
+			mini_tag:ts.mini_tag||d_mini_tag,
+		};
 		
 		/**
 		 * Sub-minify function used for recursion so the tagset check isn't
@@ -1600,39 +1635,36 @@ var snow=(function(){
 		 * @return {string} The smallest possible textual representation of 
 		 *  the Snow document.
 		**/
-		function minify(x,tags){
+		function inner_mini(x,ts){
+			var LEFT=1,RIGHT=2,BOTH=LEFT|RIGHT;
+			
 			function is_unquoted(x){
 				if(x instanceof Text){
-					return /^[^\s{:}\[\]\\"'`]+$/.test(x);
+					return /^[^\s{:}\[\]\\"'`]+$/.test(x.value);
 				}
+				
+				return false;
 			}
 			
-			//Tag minification utility function (hamming distance)
-			function utility(x,y){
-				if(x==~y&3){
-					return 2;
-				}
-				else if(x==y){
-					return 0;
-				}
-				return 1;
+			//Tag minification utility function
+			var MAX_SCORE=5;
+			function utility(a,b){
+				return 3*(2*a!=b)+b;
 			}
 			
 			if(x instanceof Text){
 				//Text can be made (possibly) smaller in exactly one way -
 				// when just one character needs to be escaped, it can be
 				// made unquoted (1 character smaller), but doing so is only
-				// more optimal when in a tag and neither side needs a space to
-				// disambiguate, something only the tag can determine and
+				// more optimal when in a tag and neither side needs a space
+				// to disambiguate, something only the tag can determine and
 				// is fairly hard to integrate into the algorithm.
 				return x.toString();
 			}
 			else if(x instanceof Section){
 				//Outsource any section minification to the tagset -
 				// can't be done generically
-				return "["+tags.mini_section(x.value.slice(0)).map(function(v){
-					return minify(v,tags);
-				}).join("")+"]";
+				return ts.mini_section(x,ts);
 			}
 			else if(x instanceof Tag){
 				/**
@@ -1674,86 +1706,66 @@ var snow=(function(){
 				 *  of the output array with spaces where necessary for the
 				 *  final string version.
 				**/
-				var keys=x.keys.slice(0),kl=keys.length,vals=x.vals.slice(0);
-				var pos=x.pos.slice(0),pl=pos.length;
 				
-				tags.mini_tag(keys,vals,pos);
-				
-				var LEFT=1,RIGHT=2,BOTH=LEFT|RIGHT;
-				
-				var pf=new Array(pl+2);
-				pf[0]=RIGHT;
-				//pf.length==pl+2, pf[pf.length-1] == pf[pl+2-1] ==  pf[pl+1]
-				pf[pl+1]=LEFT;
-				
-				for(var i=0;i<pl;++i){
-					if(is_unquoted(pos[i])){
-						pf[i+1]=BOTH;
-					}
-					else{
-						pf[i+1]=0;
-					}
+				x=ts.mini_tag(x,ts);
+				var named=[],keys=x.keys,vals=x.vals;
+				for(var i=keys.length;i--;){
+					var k=keys[i],v=vals[i];
+					named.push({
+						value:inner_mini(k,ts)+":"+inner_mini(v,ts),
+						lr:(is_unquoted(k)?0:LEFT)|(is_unquoted(v)?0:RIGHT)
+					});
 				}
 				
-				var n00=[],n01=[],n10=[],n11=[];
-				var nfv=[n00,n01,n10,n11];
-				for(var i=0;i<kl;++i){
-					var x=0,k=keys[i],v=vals[i];
-					if(!is_unquoted(k)){
-						x=LEFT;
-					}
-					if(!is_unquoted(v)){
-						x|=RIGHT;
+				//Sort 11 to 00
+				named.sort(function(a,b){
+					return a.lr-b.lr;
+				});
+				
+				var out=[{lr:RIGHT}],pos=x.pos,pl=pos.length;
+				for(var i=0;i<pl;++i){
+					var e=pos[i];
+					out.push({
+						value:inner_mini(e,ts),
+						lr:is_unquoted(e)?0:BOTH
+					});
+				}
+				out.push({lr:LEFT});
+				
+				while(named.length){
+					var i=out.length-1;
+					var name=named.pop(),best=1,score=0,left=out[i].lr;
+					var nlr=name.lr,nl=nlr&LEFT,nr=nlr&RIGHT;
+					for(;--i;){
+						var right=left;
+						left=out[i].lr;
+						
+						var u=utility(nl,left&RIGHT)+utility(right&LEFT,nr);
+						if(u>score){
+							score=u;
+							best=i;
+							if(score==MAX_SCORE){
+								break;
+							}
+						}
 					}
 					
-					nfv[x].push(minify(k,tags)+":"+minify(v,tags));
-				}
-				var nf=[],i=4;
-				while(i--){
-					var j=nfv[i].length;
-					while(j--){
-						nf.push(i);
-					}
-				}
-				var nv=n11.concat(n10,n01,n00);
-				
-				//Don't stop until all named attributes are inserted
-				var out=pos,ol=pl,of=pf;
-				while(nv.length){
-					var mu=0,p=0,same=false;
-					for(var i=0;i<ol && nv.length;++i){
-						var u=utility(nv[nv.length-1],of[i+1]);
-						if(u==2){
-							mu=0;
-							same=true;
-							out.splice(i,0,nv.pop());
-							of.splice(++i,0,nf.pop());
-							++ol;
-						}
-						else if(u>mu){
-							mu=u;
-							p=i;
-						}
-					}
-					if(!same){
-						out.splice(p,0,nv.pop());
-						of.splice(p+1,0,nf.pop());
-						++ol;
-					}
+					out.splice(best,0,name);
 				}
 				
-				var s="{";
-				for(var i=0;i<ol;++i){
-					if(!(of[i]&RIGHT) && !(of[i+1]&LEFT)){
-						s+=' ';
+				console.log(out);
+				
+				//named now contains all elements sorted into the best
+				// possible arrangement. Concatenate with spaces based on if
+				// they're needed.
+				var s="{",ol=out.length-1,left=out[0].lr;
+				for(var i=1;i<ol;++i){
+					var e=out[i];
+					if((left&RIGHT)+((left=e.lr)&LEFT)==0){
+						s+=" ";
 					}
-					var x=out[i];
-					if(typeof x=="string"){
-						s+=x;
-					}
-					else{
-						s+=minify(x,tags);
-					}
+					
+					s+=e.value;
 				}
 				return s+"}";
 			}
@@ -1762,13 +1774,10 @@ var snow=(function(){
 			}
 		}
 		
-		//Minification can't produce an error.
 		if(x instanceof Document){
-			return tags.mini_section(x.value.slice(0)).map(function(v){
-				return minify(v,tags);
-			}).join("");
+			return ts.mini_doc(x,ts);
 		}
-		return minify(x,tags);
+		return inner_mini(x,ts);
 	}
 	
 	return /** @struct **/ {

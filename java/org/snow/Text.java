@@ -1,5 +1,6 @@
-package org.snowlang.snow;
+package org.snow;
 
+import java.util.Iterator;
 
 /**
  * Snow text object, used to store text from tags or sections.
@@ -20,11 +21,12 @@ public class Text extends Flake{
 		val=s;
 	}
 	
-	public Text(String s,int l,int c,int p){
-		super(l,c,p);
+	public Text(String s,int l,int c){
+		super(l,c);
 		val=s;
 	}
 	
+	@Override
 	public boolean is_text(){
 		return true;
 	}
@@ -41,6 +43,7 @@ public class Text extends Flake{
 		return n;
 	}
 	
+	@Override
 	public String toString(){
 		int q1=count('"'),
 			q2=count('\''),
@@ -70,10 +73,12 @@ public class Text extends Flake{
 	}
 	
 	//Same as toString because of how trivial minification of text is.
+	@Override
 	public String minify(Tagset t){
 		return toString();
 	}
 	
+	@Override
 	public boolean equals(Object o){
 		if(o instanceof Flake){
 			Text t=((Flake)o).as_text();
@@ -99,5 +104,15 @@ public class Text extends Flake{
 		if(s!=null){
 			val=s;
 		}
+	}
+	
+	@Override
+	public Object visit(SnowVisitor v){
+		return v.visit_text(this);
+	}
+	
+	@Override
+	public int hashCode(){
+		return val.hashCode();
 	}
 }

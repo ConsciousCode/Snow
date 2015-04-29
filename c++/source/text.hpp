@@ -9,15 +9,14 @@ namespace snow{
 	 * A Snow text object.
 	**/
 	class Text:public Flake{
-		public:
+		protected:
 			/**
 			 * The internal string.
 			**/
-			util::SaneString text;
-
+			util::UString text;
+			
+		public:
 			Text();
-
-			Text(const util::SaneString& text,char q=' ');
 
 			virtual bool eq(const Flake* x) const;
 
